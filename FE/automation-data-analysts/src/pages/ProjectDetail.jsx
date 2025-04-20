@@ -3,6 +3,7 @@ import MainLayout from "../layout/MainLayout";
 import { useState } from "react";
 import PreparePanel from "./projectPanels/PreparePanel";
 import EDAPanel from "./projectPanels/EDAPanel";
+import ChatbotPanel from "./projectPanels/ChatbotPanel";
 
 const tabs = ["Prepare", "EDA", "Model Builder", "Chatbot", "Export"];
 
@@ -30,9 +31,9 @@ export default function ProjectDetail() {
       <div>
         {activeTab === "Prepare" && <PreparePanel />}
         {activeTab === "EDA" && <EDAPanel />}
-        {/* {activeTab === "Model Builder" && <ModelBuilderPanel />}
+        {/* {activeTab === "Model Builder" && <ModelBuilderPanel />} */}
         {activeTab === "Chatbot" && <ChatbotPanel />}
-        {activeTab === "Export" && <ExportPanel />} */}
+        {/* {activeTab === "Export" && <ExportPanel />} */}
       </div>
     </MainLayout>
   );

@@ -75,7 +75,7 @@ export default function PreparePanel() {
     
     <div>
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">Data Preparation</h2>
+        <h2 className="text-xl font-bold">Data Preparation</h2>
         <div className="flex gap-4">
           <button
             onClick={handlePreviewIssues}

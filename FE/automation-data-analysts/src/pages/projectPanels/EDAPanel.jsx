@@ -96,12 +96,12 @@ export default function EDAPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-4 bg-white p-6 rounded-xl shadow-md">
+      <div className="">
         <h2 className="text-xl font-bold">Exploratory Data Analysis</h2>
 
         {/* Summary Stats */}
         {stats && (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto space-y-4 bg-white p-6 rounded-xl shadow-md">
             <h3 className="font-semibold text-gray-800 text-xl mb-4">📊 Summary Statistics</h3>
             <div className="overflow-y-auto max-h-[400px] border rounded-lg shadow-md">
               <table className="min-w-full text-sm">
@@ -135,7 +135,7 @@ export default function EDAPanel() {
       {/* Correlation Matrix */}
       {corr && (
         <div className="space-y-4 bg-white p-6 rounded-xl shadow-md overflow-auto">
-          <h3 className="font-semibold text-gray-700 mb-2">📈 Correlation Matrix</h3>
+          <h3 className="font-semibold text-gray-800 text-xl mb-4">📈 Correlation Matrix</h3>
           <table className="border border-gray-200 text-sm table-auto">
             <tbody>
               {corr.map((row, rowIdx) => (
@@ -172,8 +172,8 @@ export default function EDAPanel() {
 
       {/* Chart Generation */}
       <div className="space-y-4 bg-white p-6 rounded-xl shadow-md">
-        <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-          📉 <span>Generate Chart</span>
+        <h3 className="font-semibold text-gray-800 text-xl mb-4">
+          📉 Generate Chart
         </h3>
 
         <div className="flex flex-wrap items-center gap-4">
@@ -253,7 +253,7 @@ export default function EDAPanel() {
 
       {/* EDA Reports Section */}
       <div className="space-y-4 bg-white p-6 rounded-xl shadow-md">
-      <h3 className="font-semibold text-gray-700">📁 EDA Reports</h3>
+      <h3 className="font-semibold text-gray-800 text-xl mb-4">📁 EDA Reports</h3>
 
       {/* Nút Get Reports */}
       {!fetched && (
