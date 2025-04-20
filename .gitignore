@@ -1,0 +1,16 @@
+# Ignore node_modules in all subfolders
+**/node_modules/
+
+# Ignore build and dist folders in all subfolders
+**/build/
+**/dist/
+
+# Ignore .env files in all subfolders
+**/.env*
+
+# Ignore logs
+*.log
+
+# Ignore editor folders
+.vscode/
+.idea/
