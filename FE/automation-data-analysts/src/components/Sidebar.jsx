@@ -11,7 +11,7 @@ export default function Sidebar() {
   const currentUser = "Nghia"; // Thay bằng data thực sau này
 
   return (
-    <div className="h-screen w-64 bg-gray-800 text-white flex flex-col justify-between p-4">
+    <div className="h-screen w-64 bg-green-900 text-white flex flex-col justify-between p-4">
       <div>
         <h2 className="text-xl font-bold text-blue-400 mb-6">👋 Xin chào, {currentUser}</h2>
 
@@ -20,8 +20,8 @@ export default function Sidebar() {
             <Link
               key={item.name}
               to={item.path}
-              className={`block px-4 py-2 rounded hover:bg-gray-700 transition ${
-                location.pathname === item.path ? "bg-gray-700 font-semibold" : ""
+              className={`block px-4 py-2 rounded hover:bg-green-600 transition ${
+                location.pathname === item.path ? "bg-green-600 font-semibold" : ""
               }`}
             >
               {item.name}

@@ -79,23 +79,22 @@ export default function PreparePanel() {
         <div className="flex gap-4">
           <button
             onClick={handlePreviewIssues}
-            className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600"
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition hover:cursor-pointer"
           >
             🔍 Preview Detected Issues
           </button>
           <button
-            onClick={handleCheckStatus}
-            className="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600"
-          >
-            📊 Check Cleaning Status
-          </button>
-          <button
             onClick={() => setShowCleanModal(true)}
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+            className="bg-white border border-green-600 text-green-600 px-4 py-2 rounded hover:bg-green-600 hover:text-white transition hover:cursor-pointer"
           >
             🧹 Clean Data
           </button>
-
+          <button
+            onClick={handleCheckStatus}
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition hover:cursor-pointer"
+          >
+            📊 Check Cleaning Status
+          </button>
         </div>
       </div>
 
@@ -177,7 +176,7 @@ export default function PreparePanel() {
               <label className="flex items-center gap-3">
                 <input
                   type="checkbox"
-                  className="accent-blue-500 h-4 w-4"
+                  className="accent-green-600 h-4 w-4"
                   checked={cleanOptions.missing}
                   onChange={(e) =>
                     setCleanOptions({ ...cleanOptions, missing: e.target.checked })
@@ -192,7 +191,7 @@ export default function PreparePanel() {
               <label className="flex items-center gap-3">
                 <input
                   type="checkbox"
-                  className="accent-blue-500 h-4 w-4"
+                  className="accent-green-600 h-4 w-4"
                   checked={cleanOptions.outliers}
                   onChange={(e) =>
                     setCleanOptions({ ...cleanOptions, outliers: e.target.checked })
@@ -207,7 +206,7 @@ export default function PreparePanel() {
               <label className="flex items-center gap-3">
                 <input
                   type="checkbox"
-                  className="accent-blue-500 h-4 w-4"
+                  className="accent-green-600 h-4 w-4"
                   checked={cleanOptions.duplicates}
                   onChange={(e) =>
                     setCleanOptions({ ...cleanOptions, duplicates: e.target.checked })
@@ -223,7 +222,7 @@ export default function PreparePanel() {
             <div className="pt-4 text-right">
               <button
                 onClick={handleCleanData}
-                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-md shadow-sm transition"
+                className="inline-flex items-center gap-2 bg-green-600 text-white px-5 py-2 rounded-md shadow-sm hover:bg-green-700 transition hover:cursor-pointer"
               >
                 🚀 Start Cleaning
               </button>

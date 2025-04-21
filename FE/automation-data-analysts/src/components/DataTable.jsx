@@ -34,25 +34,25 @@ export default function DataTable({ data }) {
   return (
       <div className="min-w-[900px] overflow-x-auto border rounded max-h-[500px]">
         <table className="text-sm border-collapse">
-            <div className="top-0 sticky z-10 border-b border-gray-300">
-                <thead className="bg-gray-100 text-gray-700">
+            <div className="top-0 sticky z-10 border-b border-green-300">
+                <thead className="bg-green-100 text-green-700">
                     <tr>
                     {columns.map((col) => (
                         <th
                         key={col}
-                        className="px-4 py-3 text-left font-medium cursor-pointer select-none whitespace-nowrap hover:bg-gray-200 transition w-[150px] min-w-[150px] border-r border-gray-300"
+                        className="px-4 py-3 text-left font-medium cursor-pointer select-none whitespace-nowrap hover:bg-green-200 transition w-[200px] min-w-[200px] border-r border-green-300"
                         onClick={() => handleSort(col)}
                         >
                         <div className="flex items-center gap-1">
                             {col}
                             {sortConfig.key === col ? (
                             sortConfig.direction === "asc" ? (
-                                <ChevronUp size={16} className="text-gray-500" />
+                                <ChevronUp size={16} className="text-green-500" />
                             ) : (
-                                <ChevronDown size={16} className="text-gray-500" />
+                                <ChevronDown size={16} className="text-green-500" />
                             )
                             ) : (
-                            <ChevronDown size={16} className="text-gray-300" />
+                            <ChevronDown size={16} className="text-green-300" />
                             )}
                         </div>
                         </th>
@@ -65,10 +65,10 @@ export default function DataTable({ data }) {
                     {sortedData.map((row, idx) => (
                     <tr
                         key={idx}
-                        className="even:bg-gray-50 hover:bg-blue-50 transition"
+                        className="even:bg-green-50 hover:bg-green-400 transition"
                     >
                         {columns.map((col) => (
-                        <td key={col} className="px-4 py-2 whitespace-nowrap w-[150px] min-w-[150px] border-r border-gray-300">
+                        <td key={col} className="px-4 py-2 whitespace-nowrap w-[200px] min-w-[200px] border-r border-green-300">
                             {row[col]}
                         </td>
                         ))}

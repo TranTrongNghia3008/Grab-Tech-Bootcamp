@@ -20,7 +20,7 @@ export default function ProjectDetail() {
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`py-2 px-4 rounded-t font-medium ${
-              activeTab === tab ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700"
+              activeTab === tab ? "bg-green-600 text-white" : "bg-gray-200 text-gray-700"
             }`}
           >
             {tab}

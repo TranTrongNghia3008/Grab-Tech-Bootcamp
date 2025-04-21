@@ -102,7 +102,7 @@ export default function ChatbotPanel() {
                 <h3 className="text-sm font-bold text-gray-700">Conversations</h3>
                 <button
                 onClick={handleNewConversation}
-                className="text-blue-600 hover:text-blue-800"
+                className="text-green-600 hover:cursor-pointer"
                 title="New Chat"
                 >
                 <Plus size={18} />
@@ -114,8 +114,8 @@ export default function ChatbotPanel() {
                     key={conv.id}
                     className={`flex justify-between items-center px-3 py-2 rounded group cursor-pointer ${
                         currentConv?.id === conv.id
-                        ? "bg-blue-100 text-blue-800 font-semibold"
-                        : "hover:bg-gray-200 text-gray-800"
+                        ? "bg-green-100 text-green-600 font-semibold"
+                        : "hover:bg-green-200 text-gray-800"
                     }`}
                     >
                     {editingConvId === conv.id ? (
@@ -213,9 +213,9 @@ export default function ChatbotPanel() {
                         alt="User"
                         className="w-7 h-7 rounded-full object-cover border border-gray-300"
                     />
-                    <div className="bg-blue-50 px-4 py-2 rounded-md text-sm flex-1 shadow-sm">
+                    <div className="bg-green-50 px-4 py-2 rounded-md text-sm flex-1 shadow-sm">
                         <div className="flex justify-between items-start">
-                        <p className="text-blue-800 font-medium">{msg.question}</p>
+                        <p className="text-green-600 font-medium">{msg.question}</p>
                         <button
                             onClick={() => handleDeleteMessage(msg.id)}
                             className="text-xs text-red-400 hover:text-red-600 ml-2"
@@ -252,12 +252,12 @@ export default function ChatbotPanel() {
                 onKeyDown={(e) => e.key === "Enter" && handleSend()}
                 type="text"
                 placeholder="Ask your dataset anything..."
-                className="flex-1 border border-gray-300 px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                className="flex-1 border border-gray-300 px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-green-600 text-sm"
             />
             <button
                 onClick={handleSend}
                 disabled={loading}
-                className="text-blue-600 hover:text-blue-800 disabled:opacity-40"
+                className="text-green-600 hover:text-green-800 disabled:opacity-40"
                 title="Send"
             >
                 <Send size={20} />
