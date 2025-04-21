@@ -9,7 +9,7 @@ const tabs = ["Prepare", "EDA", "Model Builder", "Chatbot", "Export"];
 
 export default function ProjectDetail() {
   const { id } = useParams();
-  const [activeTab, setActiveTab] = useState("Cleaning");
+  const [activeTab, setActiveTab] = useState("Prepare");
 
   return (
     <MainLayout>

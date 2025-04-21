@@ -2,8 +2,8 @@ import './App.css'
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Projects from './pages/Projects';
-import Upload from './pages/Upload';
 import ProjectDetail from './pages/ProjectDetail';
+import CreateProject from './pages/CreateProject';
 
 function App() {
 
@@ -13,7 +13,7 @@ function App() {
       <Routes>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/projects" element={<Projects />} />
-        <Route path="/projects/upload" element={<Upload />} />
+        <Route path="/projects/create" element={<CreateProject />} />
         <Route path="/project/:id" element={<ProjectDetail />} />
         {/* thêm các route khác */}
       </Routes>
