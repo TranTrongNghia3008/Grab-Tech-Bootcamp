@@ -5,8 +5,10 @@ import io
 # define router
 router = APIRouter(
     prefix='/v1',
+    tags=['datasets']
 )
 
+# Upload local CSV
 @router.post('/datasets/')
 async def upload_datasets(file: UploadFile = File(...)):
     # Check if CSV or not
