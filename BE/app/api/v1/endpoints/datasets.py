@@ -27,14 +27,13 @@ async def upload_datasets(file: UploadFile = File(...)):
     # Read CSV file
     content = await file.read()
     decoded = content.decode('utf-8')
-    reader = csv.DictReader(io.StringIO(decoded))
-    records = [row for row in reader]
+    df = pd.read_csv(io.StringIO(decoded))
     
     # Save to DB
-    # Not yet
+    
     
     # Return preview
-    return {'filename': file.filename, 'records': records[5]}
+    return {'filename': file.filename, 'records': df[:5]}
 
 # DB ingestion via query
 @router.post('/datasets/from-connection/')
@@ -65,9 +64,8 @@ async def ingest_from_connection(payload: DatasetFromConnection, db: Session = D
     
     # Upload record with path
     ds.file_path = path
-    db.add(ds)
     db.commit()
     db.refresh(ds)
-    
+
     return DatasetId(id=ds.id)
     
