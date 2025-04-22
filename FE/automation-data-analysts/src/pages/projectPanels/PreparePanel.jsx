@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react";
+import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
+
 import Modal from "../../components/ui/Modal";
 import mockData from "../../components/mock/sampleData.json"; 
 import DataTable from "../../components/DataTable";
 
-
 export default function PreparePanel() {
-  // const datasetId = 123; // This should come from props/context later
-  // const cleaningId = 456; // Simulated cleaning job ID
-
   const [showCleanModal, setShowCleanModal] = useState(false);
   const [cleanOptions, setCleanOptions] = useState({
     missing: true,
@@ -19,9 +17,7 @@ export default function PreparePanel() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [showPreviewIssues, setShowPreviewIssues] = useState(false);
 
-  const [toast, setToast] = useState(null);
-
-
+  const [cleanStatus, setCleanStatus] = useState(null); // ← trạng thái chính
   const [data, setData] = useState([]);
 
   useEffect(() => {
@@ -29,16 +25,12 @@ export default function PreparePanel() {
   }, []);
 
   const handlePreviewIssues = async () => {
-    // Toggle display
     if (showPreviewIssues) {
       setShowPreviewIssues(false);
       return;
     }
-  
     setPreviewLoading(true);
     setShowPreviewIssues(true);
-  
-    // Simulate API call
     setTimeout(() => {
       setPreviewIssues({
         missing: { age: 5, income: 2 },
@@ -49,30 +41,22 @@ export default function PreparePanel() {
     }, 800);
   };
 
-  const handleCheckStatus = async () => {
-    setTimeout(() => {
-      const simulatedStatus = "running"; // change to "pending", "done", "error"
-  
-      // Show toast
-      setToast({
-        message: `Cleaning status: ${simulatedStatus}`,
-        type: simulatedStatus
-      });
-  
-      // Auto-hide after 3 seconds
-      setTimeout(() => setToast(null), 3000);
-    }, 800);
-  };
-  
-
   const handleCleanData = () => {
     console.log("Cleaning with options:", cleanOptions);
     setShowCleanModal(false);
-    alert("Cleaning job has been submitted!");
+
+    setCleanStatus("pending");
+
+    setTimeout(() => {
+      setCleanStatus("running");
+
+      setTimeout(() => {
+        setCleanStatus("done");
+      }, 2000);
+    }, 1000);
   };
 
   return (
-    
     <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">Data Preparation</h2>
@@ -89,21 +73,25 @@ export default function PreparePanel() {
           >
             🧹 Clean Data
           </button>
-          <button
-            onClick={handleCheckStatus}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition hover:cursor-pointer"
-          >
-            📊 Check Cleaning Status
-          </button>
         </div>
       </div>
+
+      {/* Dòng trạng thái Cleaning */}
+      {cleanStatus && (
+        <div className="flex items-center gap-2 text-sm text-gray-700 mb-3">
+          {cleanStatus === "done" && <CheckCircle size={16} className="text-green-600" />}
+          {cleanStatus === "error" && <AlertCircle size={16} className="text-red-600" />}
+          {cleanStatus === "running" && <Loader2 size={16} className="animate-spin text-green-500" />}
+          {cleanStatus === "pending" && <Loader2 size={16} className="animate-pulse text-yellow-500" />}
+          <span className="capitalize">Cleaning status: {cleanStatus}</span>
+        </div>
+      )}
 
       {/* Detected Issues */}
       {previewLoading && showPreviewIssues ? (
         <p className="text-gray-500">Detecting issues in your dataset...</p>
       ) : showPreviewIssues && previewIssues ? (
         <div className="relative bg-white border border-yellow-400 rounded-md shadow-sm p-6 mb-6">
-          {/* Close button */}
           <button
             onClick={() => setShowPreviewIssues(false)}
             className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 transition"
@@ -111,14 +99,10 @@ export default function PreparePanel() {
           >
             &times;
           </button>
-
-          {/* Header */}
           <div className="flex items-center mb-4">
             <span className="text-yellow-500 text-xl mr-2">⚠️</span>
             <h3 className="text-lg font-semibold text-yellow-700">Data Quality Issues Detected</h3>
           </div>
-
-          {/* Issues List */}
           <ul className="text-sm text-gray-700 space-y-2 pl-6 list-disc">
             <li>
               <span className="font-medium text-gray-800">Missing values:</span>{" "}
@@ -139,34 +123,8 @@ export default function PreparePanel() {
         </div>
       ) : null}
 
-
-
       {/* Data Table */}
       <DataTable data={data} />
-
-      {/* <div className="overflow-auto border rounded">
-        <table className="min-w-full text-sm">
-          <thead className="bg-gray-200 text-gray-700">
-            <tr>
-              {data[0] &&
-                Object.keys(data[0]).map((col) => (
-                  <th key={col} className="px-4 py-2 text-left">
-                    {col}
-                  </th>
-                ))}
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((row, idx) => (
-              <tr key={idx} className="even:bg-gray-50">
-                {Object.values(row).map((val, i) => (
-                  <td key={i} className="px-4 py-2">{val}</td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div> */}
 
       {/* Cleaning Options Modal */}
       {showCleanModal && (
@@ -229,25 +187,7 @@ export default function PreparePanel() {
             </div>
           </div>
         </Modal>
-
       )}
-
-      {toast && (
-        <div className={`fixed bottom-4 right-4 z-50 px-4 py-3 rounded shadow-lg text-sm
-          ${
-            toast.type === "done"
-              ? "bg-green-100 text-green-800 border border-green-300"
-              : toast.type === "running"
-              ? "bg-blue-100 text-blue-800 border border-blue-300"
-              : toast.type === "error"
-              ? "bg-red-100 text-red-800 border border-red-300"
-              : "bg-gray-100 text-gray-800 border border-gray-300"
-          }
-        `}>
-          <span className="font-medium capitalize">{toast.message}</span>
-        </div>
-      )}
-
     </div>
   );
 }

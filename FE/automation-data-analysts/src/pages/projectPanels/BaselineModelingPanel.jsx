@@ -66,6 +66,7 @@ export default function BaselineModelingPanel() {
                 {jobStatus === "done" && <CheckCircle size={16} className="text-green-600" />}
                 {jobStatus === "error" && <AlertCircle size={16} className="text-red-600" />}
                 {jobStatus === "running" && <Loader2 size={16} className="animate-spin text-green-500" />}
+                {jobStatus === "pending" && <Loader2 size={16} className="animate-pulse text-yellow-500" />}
                 <span className="capitalize">Status: {jobStatus}</span>
                 </div>
             )}
