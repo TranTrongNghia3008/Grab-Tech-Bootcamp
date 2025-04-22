@@ -4,8 +4,10 @@ import { useState } from "react";
 import PreparePanel from "./projectPanels/PreparePanel";
 import EDAPanel from "./projectPanels/EDAPanel";
 import ChatbotPanel from "./projectPanels/ChatbotPanel";
+import BaselineModelingPanel from "./projectPanels/BaselineModelingPanel";
+import ModelBuilderPanel from "./projectPanels/ModelBuilderPanel";
 
-const tabs = ["Prepare", "EDA", "Model Builder", "Chatbot", "Export"];
+const tabs = ["Prepare", "EDA", "Baseline Modeling", "Model Builder", "Chatbot", "Export"];
 
 export default function ProjectDetail() {
   const { id } = useParams();
@@ -31,7 +33,8 @@ export default function ProjectDetail() {
       <div>
         {activeTab === "Prepare" && <PreparePanel />}
         {activeTab === "EDA" && <EDAPanel />}
-        {/* {activeTab === "Model Builder" && <ModelBuilderPanel />} */}
+        {activeTab === "Baseline Modeling" && <BaselineModelingPanel />}
+        {activeTab === "Model Builder" && <ModelBuilderPanel />}
         {activeTab === "Chatbot" && <ChatbotPanel />}
         {/* {activeTab === "Export" && <ExportPanel />} */}
       </div>
