@@ -6,7 +6,7 @@ from sqlalchemy import create_engine
 import pandas as pd
 
 from app.schemas.dataset import DatasetFromConnection, DatasetId
-from app.crud.connections import get_connection
+from app.crud.connections import get_connection_by_id
 from app.crud.datasets import create_dataset
 from app.api.v1.dependencies import get_db
 from app.utils.file_storage import save_dataframe_as_csv
@@ -44,7 +44,7 @@ async def upload_datasets(file: UploadFile = File(...), db: Session = Depends(ge
 # DB ingestion via query
 @router.post('/datasets/from-connection/')
 async def ingest_from_connection(payload: DatasetFromConnection, db: Session = Depends(get_db)):
-    conn = get_connection(db, payload.connection_id)
+    conn = get_connection_by_id(db, payload.connection_id)
     
     # Verify connection
     if not conn:
