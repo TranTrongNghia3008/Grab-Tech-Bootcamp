@@ -19,7 +19,7 @@ router = APIRouter(
 
 # Upload local CSV
 @router.post('/datasets/')
-async def upload_datasets(file: UploadFile = File(...)):
+async def upload_datasets(file: UploadFile = File(...), db: Session = Depends(get_db)):
     # Check if CSV or not
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400, detail='Only CSV files are supported.')
@@ -30,10 +30,16 @@ async def upload_datasets(file: UploadFile = File(...)):
     df = pd.read_csv(io.StringIO(decoded))
     
     # Save to DB
+    ds = create_dataset(db, connection_id=0, file_path="")
+    filename = f"dataset_{ds.id}.csv"
+    path = save_dataframe_as_csv(df, filename)
     
+    # Upload record with path
+    ds.file_path = path
+    db.commit()
+    db.refresh(ds)
     
-    # Return preview
-    return {'filename': file.filename, 'records': df[:5]}
+    return DatasetId(id=ds.id)
 
 # DB ingestion via query
 @router.post('/datasets/from-connection/')
