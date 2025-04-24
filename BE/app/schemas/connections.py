@@ -4,7 +4,7 @@ class ConnectionId(BaseModel):
     id: int
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ConnectionOut(BaseModel):
     id: int
@@ -15,7 +15,7 @@ class ConnectionOut(BaseModel):
     username: str
     
     class Config:
-        orm_mode = True
+        from_attributes = True
         
 class ConnectionCreate(BaseModel):
     type: str

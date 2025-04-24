@@ -4,6 +4,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 import logging
 import time
 
+from app.api.v1.endpoints import connections, eda, datasets
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -20,12 +22,17 @@ app.add_middleware(
 
 # Logging Middleware
 @app.middleware('http')
-async def dispatch(self, request: Request, call_next):
+async def dispatch(request: Request, call_next):
     start_time = time.time()
     response = await call_next(request)
     process_time = time.time()-start_time
     logger.info(f'{request.method} {request.url.path} - {response.status_code} - {process_time:2f}s')
     return response
+
+# Include routers
+app.include_router(connections.router)
+app.include_router(datasets.router)
+app.include_router(eda.router)
 
 @app.get('/')
 async def main():
