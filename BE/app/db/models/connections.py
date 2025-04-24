@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String
 from app.db.base import Base
+from sqlalchemy.orm import relationship
 
 class Connection(Base):
     __tablename__ = 'connections'
@@ -11,3 +12,5 @@ class Connection(Base):
     database = Column(String, nullable=False)
     username = Column(String, nullable=False)
     password = Column(String, nullable=False)
+    
+    datasets = relationship('Dataset', back_populates='connections', cascade='all, delete-orphan')
