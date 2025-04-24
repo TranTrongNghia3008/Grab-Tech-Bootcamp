@@ -6,7 +6,8 @@ from app.db.models.datasets import Dataset
 from app.utils.file_storage import load_csv_as_dataframe
 
 router = APIRouter(
-    prefix='/v1/datasets', tags=['EDA']
+    prefix='/v1/datasets', 
+    tags=['EDA']
 )
 
 # Get summary statistic from dataset
