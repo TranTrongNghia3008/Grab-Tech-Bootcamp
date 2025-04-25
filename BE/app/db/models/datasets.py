@@ -1,0 +1,16 @@
+from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy.sql import func
+from sqlalchemy import DateTime
+from sqlalchemy.orm import relationship
+from app.db.base import Base
+
+class Dataset(Base):
+    __tablename__ = 'datasets'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    connection_id = Column(Integer, ForeignKey("connections.id"), nullable=False)
+    file_path = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    connections = relationship("Connection", back_populates="datasets")
+    model_jobs = relationship('ModelJob', back_populates='datasets', cascade='all, delete-orphan')
