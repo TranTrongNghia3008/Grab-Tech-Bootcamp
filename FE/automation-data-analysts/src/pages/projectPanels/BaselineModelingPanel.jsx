@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { Button, Card } from "../../components/ui";
 
 export default function BaselineModelingPanel() {
     const [jobStatus, setJobStatus] = useState(null); // pending, running, done, error
@@ -47,17 +48,12 @@ export default function BaselineModelingPanel() {
             
             {/* Train Button */}
             <div>
-                <button
+                <Button
                 onClick={handleTrainBaseline}
                 disabled={loading || jobStatus === "running"}
-                className={`px-5 py-2 rounded-md text-white transition ${
-                    loading || jobStatus === "running"
-                    ? "bg-green-400 cursor-wait"
-                    : "bg-green-600 hover:bg-green-700"
-                }`}
                 >
                 {loading || jobStatus === "running" ? "Training..." : "Train Baseline"}
-                </button>
+                </Button>
             </div>
 
             {/* Status */}
@@ -73,7 +69,7 @@ export default function BaselineModelingPanel() {
 
             {/* Metrics */}
             {metrics && (
-                <div className="bg-white p-6 rounded-xl shadow-md">
+                <Card>
                     <h3 className="text-xl font-semibold text-gray-800 mb-4">📈 Model Metrics</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     {Object.entries(metrics).map(([key, val]) => (
@@ -88,31 +84,31 @@ export default function BaselineModelingPanel() {
                         </div>
                     ))}
                     </div>
-                </div>
+                </Card>
                 )}
 
 
             {/* Feature Importances */}
             {importances && (
-                <div className="space-y-4 bg-white p-6 rounded-xl shadow-md overflow-auto">
-                <h3 className="font-semibold text-gray-800 text-xl mb-4">🧠 Feature Importances</h3>
-                <div className="space-y-2">
-                    {importances.map((item, idx) => (
-                    <div key={idx} className="text-sm">
-                        <div className="flex justify-between mb-1">
-                        <span className="text-gray-700">{item.feature}</span>
-                        <span className="text-gray-600 font-medium">{(item.importance * 100).toFixed(1)}%</span>
+                <Card>
+                    <h3 className="font-semibold text-gray-800 text-xl mb-4">🧠 Feature Importances</h3>
+                    <div className="space-y-2">
+                        {importances.map((item, idx) => (
+                        <div key={idx} className="text-sm">
+                            <div className="flex justify-between mb-1">
+                            <span className="text-gray-700">{item.feature}</span>
+                            <span className="text-gray-600 font-medium">{(item.importance * 100).toFixed(1)}%</span>
+                            </div>
+                            <div className="w-full h-2 bg-gray-200 rounded">
+                            <div
+                                className="h-2 bg-green-500 rounded"
+                                style={{ width: `${item.importance * 100}%` }}
+                            ></div>
+                            </div>
                         </div>
-                        <div className="w-full h-2 bg-gray-200 rounded">
-                        <div
-                            className="h-2 bg-green-500 rounded"
-                            style={{ width: `${item.importance * 100}%` }}
-                        ></div>
-                        </div>
+                        ))}
                     </div>
-                    ))}
-                </div>
-                </div>
+                </Card>
             )}
         </div>
     );

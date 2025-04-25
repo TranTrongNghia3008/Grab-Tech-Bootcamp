@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "../layout/MainLayout";
-import Modal from "../components/ui/Modal";
+import { Button, Card, Modal } from "../components/ui";
 import { ArrowDownAZ, ArrowUpAZ, Calendar, Pencil, Trash2 } from "lucide-react";
 
 export default function Projects() {
@@ -28,9 +28,7 @@ export default function Projects() {
   const [selectedProject, setSelectedProject] = useState(null);
   const [newName, setNewName] = useState("");
 
-  const handleCreateProject = () => {
-    navigate("/projects/create");
-  };
+  const handleCreateProject = () => navigate("/projects/create");
 
   const handleSort = (key) => {
     if (sortKey === key) {
@@ -58,19 +56,14 @@ export default function Projects() {
 
   return (
     <MainLayout>
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
-        <h1 className="text-2xl font-bold">📁 My Projects</h1>
-        <button
-          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 hover:cursor-pointer transition"
-          onClick={handleCreateProject}
-        >
-          + New Project
-        </button>
+        <h1 className="text-2xl font-bold text-[#1B1F1D]">📁 My Projects</h1>
+        <Button onClick={handleCreateProject}>+ New Project</Button>
       </div>
 
-      {/* Search + Sort */}
+      {/* Search & Sort */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        {/* Search Field */}
         <input
           type="text"
           className="w-full sm:max-w-sm p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-600 text-sm"
@@ -78,12 +71,9 @@ export default function Projects() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-
-        {/* Sort Options */}
         <div className="flex items-center gap-3 text-sm text-gray-600">
           <span className="font-medium">Sort by:</span>
 
-          {/* Sort by Name */}
           <button
             className={`flex items-center gap-1 px-3 py-1.5 rounded-md border transition
               ${sortKey === "name"
@@ -101,7 +91,6 @@ export default function Projects() {
               ))}
           </button>
 
-          {/* Sort by Updated Date */}
           <button
             className={`flex items-center gap-1 px-3 py-1.5 rounded-md border transition
               ${sortKey === "updatedAt"
@@ -115,51 +104,50 @@ export default function Projects() {
         </div>
       </div>
 
-
-      {/* Project Grid */}
+      {/* Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
         {filteredProjects.map((project) => (
-          <div
-            key={project.id}
-            className="relative bg-white border border-green-200 rounded-lg shadow-sm hover:shadow-md p-4 transition cursor-pointer group"
-            onClick={() => {
-              localStorage.setItem("currentProject", JSON.stringify(project));
-              navigate("/project/" + project.id);
-            }}
-          >
-            <h2 className="font-semibold text-lg text-green-700">{project.name}</h2>
-            <p className="text-xs text-gray-500 mt-1">
-              Last updated: {new Date(project.updatedAt).toLocaleString()}
-            </p>
+          <Card
+          key={project.id}
+          className="relative cursor-pointer hover:shadow-md transition group"
+          onClick={() => {
+            localStorage.setItem("currentProject", JSON.stringify(project));
+            navigate("/project/" + project.id);
+          }}
+        >
+          <h2 className="font-semibold text-lg text-green-700">{project.name}</h2>
+          <p className="text-xs text-gray-500 mt-1">
+            Last updated: {new Date(project.updatedAt).toLocaleString()}
+          </p>
 
-            {/* Actions */}
-            <div
-              className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition"
-              onClick={(e) => e.stopPropagation()}
+          {/* Actions */}
+          <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedProject(project);
+                setNewName(project.name);
+                setShowRenameModal(true);
+              }}
+              className="text-gray-500 hover:text-yellow-600"
+              title="Rename"
             >
-              <button
-                onClick={() => {
-                  setSelectedProject(project);
-                  setNewName(project.name);
-                  setShowRenameModal(true);
-                }}
-                className="text-gray-500 hover:text-yellow-600"
-                title="Rename"
-              >
-                <Pencil size={16} />
-              </button>
-              <button
-                onClick={() => {
-                  setSelectedProject(project);
-                  setShowDeleteModal(true);
-                }}
-                className="text-gray-400 hover:text-red-600"
-                title="Delete"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
+              <Pencil size={16} />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedProject(project);
+                setShowDeleteModal(true);
+              }}
+              className="text-gray-400 hover:text-red-600"
+              title="Delete"
+            >
+              <Trash2 size={16} />
+            </button>
           </div>
+        </Card>
+
         ))}
       </div>
 
@@ -176,13 +164,8 @@ export default function Projects() {
               />
             </label>
             <div className="text-right space-x-2">
-              <button
-                onClick={() => setShowRenameModal(false)}
-                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-              <button
+              <Button variant="muted" onClick={() => setShowRenameModal(false)}>Cancel</Button>
+              <Button
                 onClick={() => {
                   setProjects((prev) =>
                     prev.map((p) =>
@@ -193,10 +176,9 @@ export default function Projects() {
                   );
                   setShowRenameModal(false);
                 }}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
               >
                 Save
-              </button>
+              </Button>
             </div>
           </div>
         </Modal>
@@ -210,21 +192,17 @@ export default function Projects() {
               Are you sure you want to delete <strong>{selectedProject.name}</strong>?
             </p>
             <div className="text-right space-x-2">
-              <button
-                onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-              <button
+              <Button variant="muted" onClick={() => setShowDeleteModal(false)}>Cancel</Button>
+              <Button
+                variant="danger"
+                className="bg-red-600 hover:bg-red-700 text-white"
                 onClick={() => {
                   setProjects((prev) => prev.filter((p) => p.id !== selectedProject.id));
                   setShowDeleteModal(false);
                 }}
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
               >
                 Delete
-              </button>
+              </Button>
             </div>
           </div>
         </Modal>

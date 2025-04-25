@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { FileDown, FileCode, FileArchive } from "lucide-react";
+import { Button, Card } from "../../components/ui";
 
 export default function ExportPanel() {
   const jobId = "job_123"; // Replace with actual job ID from context/state
@@ -54,7 +55,7 @@ export default function ExportPanel() {
       </div>
 
       {/* Panel */}
-      <div className="space-y-6 bg-white p-6 rounded-xl shadow-md">
+      <Card>
         {/* Predictions */}
         <div>
           <h3 className="font-semibold mb-2 text-gray-800">📈 Download Predictions</h3>
@@ -67,28 +68,26 @@ export default function ExportPanel() {
               <option value="csv">CSV</option>
               <option value="json">JSON</option>
             </select>
-            <button
+            <Button
               onClick={handleDownloadPredictions}
               disabled={loadingPred}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition text-sm"
             >
               <FileDown size={16} />
               {loadingPred ? "Preparing..." : "Download"}
-            </button>
+            </Button>
           </div>
         </div>
 
         {/* Artifacts */}
         <div>
           <h3 className="font-semibold mb-2 text-gray-800">📦 Download Model Artifacts</h3>
-          <button
+          <Button
             onClick={handleDownloadArtifacts}
             disabled={loadingArtifacts}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition text-sm"
           >
             <FileArchive size={16} />
             {loadingArtifacts ? "Preparing..." : "Download Artifacts"}
-          </button>
+          </Button>
         </div>
 
         {/* Code Snippet */}
@@ -103,17 +102,16 @@ export default function ExportPanel() {
               <option value="python">Python</option>
               {/* <option value="r">R</option> */}
             </select>
-            <button
+            <Button
               onClick={handleDownloadCode}
               disabled={loadingCode}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition text-sm"
             >
               <FileCode size={16} />
               {loadingCode ? "Preparing..." : "Download Code"}
-            </button>
+            </Button>
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

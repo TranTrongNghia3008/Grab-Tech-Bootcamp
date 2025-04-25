@@ -93,7 +93,7 @@ export default function ChatbotPanel() {
     };
 
     return (
-        <div className="flex h-[570px] rounded-xl shadow-lg border overflow-hidden bg-white">
+        <div className="flex h-[600px] rounded-xl shadow-lg border overflow-hidden bg-white">
 
         {/* Sidebar */}
         {sidebarOpen && (

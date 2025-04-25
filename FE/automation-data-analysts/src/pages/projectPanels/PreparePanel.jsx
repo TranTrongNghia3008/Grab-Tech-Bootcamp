@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { FaTableCells } from "react-icons/fa6";
 
 import Modal from "../../components/ui/Modal";
 import mockData from "../../components/mock/sampleData.json"; 
 import DataTable from "../../components/DataTable";
+import Button from "../../components/ui/Button"; // Đưa Button vào
+import Card from "../../components/ui/Card"; // Đưa Card vào
+import Toast from "../../components/ui/Toast"; // Đưa Toast vào
 
 export default function PreparePanel() {
   const [showCleanModal, setShowCleanModal] = useState(false);
@@ -18,11 +22,37 @@ export default function PreparePanel() {
   const [showPreviewIssues, setShowPreviewIssues] = useState(false);
 
   const [cleanStatus, setCleanStatus] = useState(null); // ← trạng thái chính
+  const [showToast, setShowToast] = useState(false);
   const [data, setData] = useState([]);
+  const [csvFileName, setCsvFileName] = useState('data.csv');
+  const [numRows, setNumRows] = useState(0);
+  const [numColumns, setNumColumns] = useState(0);
 
   useEffect(() => {
     setData(mockData);
+    setCsvFileName("file_name.csv"); // Tên file CSV
+    setNumRows(mockData.length);
+    setNumColumns(mockData[0] ? Object.keys(mockData[0]).length : 0);
+    // Vô hiệu hóa cuộn toàn trang khi vào trang này
+    document.body.style.overflow = "hidden";
+
+    // Reset cuộn khi component unmount
+    return () => {
+      document.body.style.overflow = "auto";
+    };
   }, []);
+
+  useEffect(() => {
+    // Khi trạng thái cleaning thành công hoặc thất bại, hiển thị toast trong 3 giây
+    if (cleanStatus === "done" || cleanStatus === "error") {
+      setShowToast(true);
+
+      // Ẩn Toast sau 3 giây (3000ms)
+      setTimeout(() => {
+        setShowToast(false);
+      }, 3000);
+    }
+  }, [cleanStatus]);
 
   const handlePreviewIssues = async () => {
     if (showPreviewIssues) {
@@ -57,22 +87,30 @@ export default function PreparePanel() {
   };
 
   return (
-    <div>
+    <div className="space-y-6">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold">Data Preparation</h2>
+        <div className="flex items-center">
+          <h2 className="text-xl font-bold">Data Preparation</h2>
+          <div className="bg-[#FFFDF3] shadow-sm border border-[#E4F3E9] rounded p-2 ms-5">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <FaTableCells className="text-green-600 text-3xl" />
+              </div>
+              <div className="text-sm">
+                <div className="font-bold text-gray-800">{csvFileName}</div> {/* Tên file CSV */}
+                <div className="text-gray-600">{numRows} rows, {numColumns} columns</div> {/* Số hàng và số cột */}
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="flex gap-4">
-          <button
-            onClick={handlePreviewIssues}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition hover:cursor-pointer"
-          >
+          <Button onClick={handlePreviewIssues} variant="primary">
             🔍 Preview Detected Issues
-          </button>
-          <button
-            onClick={() => setShowCleanModal(true)}
-            className="bg-white border border-green-600 text-green-600 px-4 py-2 rounded hover:bg-green-600 hover:text-white transition hover:cursor-pointer"
-          >
+          </Button>
+          <Button onClick={() => setShowCleanModal(true)} variant="outline">
             🧹 Clean Data
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -91,7 +129,7 @@ export default function PreparePanel() {
       {previewLoading && showPreviewIssues ? (
         <p className="text-gray-500">Detecting issues in your dataset...</p>
       ) : showPreviewIssues && previewIssues ? (
-        <div className="relative bg-white border border-yellow-400 rounded-md shadow-sm p-6 mb-6">
+        <Card className="relative bg-white border border-yellow-400 rounded-md shadow-sm p-6 mb-6">
           <button
             onClick={() => setShowPreviewIssues(false)}
             className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 transition"
@@ -120,7 +158,7 @@ export default function PreparePanel() {
               <span className="font-medium text-gray-800">Duplicates:</span> {previewIssues.duplicates}
             </li>
           </ul>
-        </div>
+        </Card>
       ) : null}
 
       {/* Data Table */}
@@ -178,16 +216,23 @@ export default function PreparePanel() {
             </div>
 
             <div className="pt-4 text-right">
-              <button
-                onClick={handleCleanData}
-                className="inline-flex items-center gap-2 bg-green-600 text-white px-5 py-2 rounded-md shadow-sm hover:bg-green-700 transition hover:cursor-pointer"
-              >
+              <Button onClick={handleCleanData} variant="primary">
                 🚀 Start Cleaning
-              </button>
+              </Button>
             </div>
           </div>
         </Modal>
       )}
+
+      {/* Toast for Cleaning Complete */}
+      {showToast && cleanStatus === "done" && (
+        <Toast type="success" message="Data cleaning completed successfully!" />
+      )}
+      {showToast && cleanStatus === "error" && (
+        <Toast type="error" message="An error occurred during cleaning." />
+      )}
+
+      <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-white to-transparent"></div>
     </div>
   );
 }
