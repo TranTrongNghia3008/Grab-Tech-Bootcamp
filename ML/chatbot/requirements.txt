@@ -1,0 +1,10 @@
+python-dotenv
+psycopg2-binary  # Or your specific DB driver
+SQLAlchemy
+langchain
+langchain-openai
+pandas
+matplotlib
+seaborn
+pydantic>=1.8,<2.0 # Or >=2.0 if compatible with your Langchain version
+# Add any other specific dependencies
