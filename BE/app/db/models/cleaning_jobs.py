@@ -10,7 +10,7 @@ class CleaningJob(Base):
     dataset_id = Column(Integer, ForeignKey("datasets.id"), nullable=False)
     status = Column(String, default="pending", nullable=False) # 'pending', 'running', 'completed', 'failed' 
     config = Column(JSON, nullable=False)
-    results = Column(JSON, nullable=False)
+    results = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
