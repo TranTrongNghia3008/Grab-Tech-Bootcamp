@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import DataTable from "../../components/DataTable";
 import { Button, Card } from "../../components/ui";
+import { FaChartBar, FaProjectDiagram } from "react-icons/fa";
+import { FiBarChart2, FiFileText } from "react-icons/fi";
+import { Loader2 } from "lucide-react";
 
 export default function EDAPanel() {
 //   const datasetId = 123; 
@@ -150,7 +153,10 @@ export default function EDAPanel() {
       {/* Summary Stats */}
       {stats && (
         <Card>
-          <h3 className="font-semibold text-gray-800 text-xl mb-4">📊 Summary Statistics</h3>
+          <h3 className="text-gray-800 text-xl mb-4 flex items-center gap-2">
+            <FaChartBar/>
+            Summary Statistics
+          </h3>
           <DataTable data={stats} />
         </Card>
       )}
@@ -160,7 +166,10 @@ export default function EDAPanel() {
       {/* Correlation Matrix */}
       {corr && (
         <Card>
-          <h3 className="font-semibold text-gray-800 text-xl mb-4">📈 Correlation Matrix</h3>
+          <h3 className="text-gray-800 text-xl mb-4 flex items-center gap-2">
+            <FaProjectDiagram/>
+            Correlation Matrix
+          </h3>
           
           <div className="flex flex-col md:flex-row gap-6">
             {/* Left side: Description */}
@@ -221,8 +230,8 @@ export default function EDAPanel() {
 
       {/* Chart Generation */}
       <Card>
-        <h3 className="font-semibold text-gray-800 text-xl mb-4">
-          📉 Generate Chart
+        <h3 className="text-gray-800 text-xl mb-4 flex items-center gap-2">
+          <FiBarChart2 /> Generate Chart
         </h3>
 
         <div className="flex flex-wrap items-center justify-center gap-4">
@@ -290,7 +299,10 @@ export default function EDAPanel() {
         {/* Chart Result */}
         <div className="pt-6">
           {loading ? (
-            <p className="text-sm text-gray-500">🔄 Generating chart...</p>
+            <div className="flex items-center gap-2 text-sm text-gray-700">
+              <Loader2 size={16} className="animate-spin text-green-500" />
+              <span className="capitalize">Generating chart...</span>
+            </div>
           ) : chart && (
             <div className="border rounded-lg p-4 bg-gray-50 shadow-inner">
               <img src={chart} alt="EDA chart" className="w-full max-h-[500px] object-contain" />
@@ -302,7 +314,9 @@ export default function EDAPanel() {
 
       {/* EDA Reports Section */}
       <Card>
-        <h3 className="font-semibold text-gray-800 text-xl mb-4">📁 EDA Reports</h3>
+        <h3 className="text-gray-800 text-xl mb-4 flex items-center gap-2">
+          <FiFileText /> EDA Reports
+        </h3>
 
         {/* Nút Get Reports */}
         {!fetched && (

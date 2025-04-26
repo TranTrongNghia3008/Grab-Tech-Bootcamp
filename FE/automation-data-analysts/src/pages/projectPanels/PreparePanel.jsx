@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { FaTableCells } from "react-icons/fa6";
+import { FaSearch, FaRocket, FaPuzzlePiece, FaChartLine, FaSync, FaExclamationTriangle } from "react-icons/fa";
 
 import Modal from "../../components/ui/Modal";
 import mockData from "../../components/mock/sampleData.json"; 
 import DataTable from "../../components/DataTable";
-import Button from "../../components/ui/Button"; // Đưa Button vào
-import Card from "../../components/ui/Card"; // Đưa Card vào
-import Toast from "../../components/ui/Toast"; // Đưa Toast vào
+import Button from "../../components/ui/Button";
+import Card from "../../components/ui/Card";
+import Toast from "../../components/ui/Toast";
 
 export default function PreparePanel() {
   const [showCleanModal, setShowCleanModal] = useState(false);
@@ -21,7 +22,7 @@ export default function PreparePanel() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [showPreviewIssues, setShowPreviewIssues] = useState(false);
 
-  const [cleanStatus, setCleanStatus] = useState(null); // ← trạng thái chính
+  const [cleanStatus, setCleanStatus] = useState(null);
   const [showToast, setShowToast] = useState(false);
   const [data, setData] = useState([]);
   const [csvFileName, setCsvFileName] = useState('data.csv');
@@ -30,24 +31,19 @@ export default function PreparePanel() {
 
   useEffect(() => {
     setData(mockData);
-    setCsvFileName("file_name.csv"); // Tên file CSV
+    setCsvFileName("file_name.csv");
     setNumRows(mockData.length);
     setNumColumns(mockData[0] ? Object.keys(mockData[0]).length : 0);
-    // Vô hiệu hóa cuộn toàn trang khi vào trang này
-    document.body.style.overflow = "hidden";
 
-    // Reset cuộn khi component unmount
+    document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = "auto";
     };
   }, []);
 
   useEffect(() => {
-    // Khi trạng thái cleaning thành công hoặc thất bại, hiển thị toast trong 3 giây
     if (cleanStatus === "done" || cleanStatus === "error") {
       setShowToast(true);
-
-      // Ẩn Toast sau 3 giây (3000ms)
       setTimeout(() => {
         setShowToast(false);
       }, 3000);
@@ -93,12 +89,10 @@ export default function PreparePanel() {
           <h2 className="text-xl font-bold">Data Preparation</h2>
           <div className="bg-[#FFFDF3] shadow-sm border border-[#E4F3E9] rounded p-2 ms-5">
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2">
-                <FaTableCells className="text-green-600 text-3xl" />
-              </div>
+              <FaTableCells className="text-green-600 text-3xl" />
               <div className="text-sm">
-                <div className="font-bold text-gray-800">{csvFileName}</div> {/* Tên file CSV */}
-                <div className="text-gray-600">{numRows} rows, {numColumns} columns</div> {/* Số hàng và số cột */}
+                <div className="font-bold text-gray-800">{csvFileName}</div>
+                <div className="text-gray-600">{numRows} rows, {numColumns} columns</div>
               </div>
             </div>
           </div>
@@ -106,15 +100,20 @@ export default function PreparePanel() {
 
         <div className="flex gap-4">
           <Button onClick={handlePreviewIssues} variant="primary">
-            🔍 Preview Detected Issues
+            <div className="flex items-center gap-2">
+              <FaSearch />
+              Preview Detected Issues
+            </div>
           </Button>
           <Button onClick={() => setShowCleanModal(true)} variant="outline">
-            🧹 Clean Data
+            <div className="flex items-center gap-2">
+              <FaSync />
+              Clean Data
+            </div>
           </Button>
         </div>
       </div>
 
-      {/* Dòng trạng thái Cleaning */}
       {cleanStatus && (
         <div className="flex items-center gap-2 text-sm text-gray-700 mb-3">
           {cleanStatus === "done" && <CheckCircle size={16} className="text-green-600" />}
@@ -125,7 +124,6 @@ export default function PreparePanel() {
         </div>
       )}
 
-      {/* Detected Issues */}
       {previewLoading && showPreviewIssues ? (
         <p className="text-gray-500">Detecting issues in your dataset...</p>
       ) : showPreviewIssues && previewIssues ? (
@@ -138,7 +136,7 @@ export default function PreparePanel() {
             &times;
           </button>
           <div className="flex items-center mb-4">
-            <span className="text-yellow-500 text-xl mr-2">⚠️</span>
+            <FaExclamationTriangle className="text-yellow-500 text-xl mr-2" />
             <h3 className="text-lg font-semibold text-yellow-700">Data Quality Issues Detected</h3>
           </div>
           <ul className="text-sm text-gray-700 space-y-2 pl-6 list-disc">
@@ -161,10 +159,8 @@ export default function PreparePanel() {
         </Card>
       ) : null}
 
-      {/* Data Table */}
       <DataTable data={data} />
 
-      {/* Cleaning Options Modal */}
       {showCleanModal && (
         <Modal onClose={() => setShowCleanModal(false)} title="Cleaning Options">
           <div className="space-y-5 text-sm text-gray-800">
@@ -174,12 +170,10 @@ export default function PreparePanel() {
                   type="checkbox"
                   className="accent-green-600 h-4 w-4"
                   checked={cleanOptions.missing}
-                  onChange={(e) =>
-                    setCleanOptions({ ...cleanOptions, missing: e.target.checked })
-                  }
+                  onChange={(e) => setCleanOptions({ ...cleanOptions, missing: e.target.checked })}
                 />
                 <span className="flex items-center gap-2">
-                  <span className="text-blue-600">🧩</span>
+                  <FaPuzzlePiece className="text-blue-600" />
                   Handle missing values
                 </span>
               </label>
@@ -189,12 +183,10 @@ export default function PreparePanel() {
                   type="checkbox"
                   className="accent-green-600 h-4 w-4"
                   checked={cleanOptions.outliers}
-                  onChange={(e) =>
-                    setCleanOptions({ ...cleanOptions, outliers: e.target.checked })
-                  }
+                  onChange={(e) => setCleanOptions({ ...cleanOptions, outliers: e.target.checked })}
                 />
                 <span className="flex items-center gap-2">
-                  <span className="text-orange-500">📈</span>
+                  <FaChartLine className="text-orange-500" />
                   Remove outliers
                 </span>
               </label>
@@ -204,12 +196,10 @@ export default function PreparePanel() {
                   type="checkbox"
                   className="accent-green-600 h-4 w-4"
                   checked={cleanOptions.duplicates}
-                  onChange={(e) =>
-                    setCleanOptions({ ...cleanOptions, duplicates: e.target.checked })
-                  }
+                  onChange={(e) => setCleanOptions({ ...cleanOptions, duplicates: e.target.checked })}
                 />
                 <span className="flex items-center gap-2">
-                  <span className="text-red-500">🔁</span>
+                  <FaSync className="text-red-500" />
                   Remove duplicates
                 </span>
               </label>
@@ -217,14 +207,16 @@ export default function PreparePanel() {
 
             <div className="pt-4 text-right">
               <Button onClick={handleCleanData} variant="primary">
-                🚀 Start Cleaning
+                <div className="flex items-center gap-2">
+                  <FaRocket />
+                  Start Cleaning
+                </div>
               </Button>
             </div>
           </div>
         </Modal>
       )}
 
-      {/* Toast for Cleaning Complete */}
       {showToast && cleanStatus === "done" && (
         <Toast type="success" message="Data cleaning completed successfully!" />
       )}

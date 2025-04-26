@@ -1,12 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { IoChevronBack } from "react-icons/io5";
-import {
-  FaDatabase,
-  FaRobot,
-  FaChartBar,
-  FaMagic,
-  FaFileExport,
-} from "react-icons/fa";
+import { FaRobot, FaChartBar, FaFileExport, FaBrain } from "react-icons/fa";
+import { FiTool } from "react-icons/fi";
 import { MdOutlineCleaningServices } from "react-icons/md";
 import { useState } from "react";
 import PreparePanel from "./projectPanels/PreparePanel";
@@ -19,8 +14,8 @@ import ExportPanel from "./projectPanels/ExportPanel";
 const tabs = [
   { label: "Prepare", icon: <MdOutlineCleaningServices className="mr-2" /> },
   { label: "EDA", icon: <FaChartBar className="mr-2" /> },
-  { label: "Baseline Modeling", icon: <FaMagic className="mr-2" /> },
-  { label: "Model Builder", icon: <FaDatabase className="mr-2" /> },
+  { label: "Baseline Modeling", icon: <FaBrain className="mr-2" /> },
+  { label: "Model Builder", icon: <FiTool className="mr-2" /> },
   { label: "Chatbot", icon: <FaRobot className="mr-2" /> },
   { label: "Export", icon: <FaFileExport className="mr-2" /> },
 ];

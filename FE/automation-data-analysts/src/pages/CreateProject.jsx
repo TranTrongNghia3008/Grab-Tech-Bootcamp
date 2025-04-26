@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import UploadDropzone from "../components/UploadDropzone";
 import MainLayout from "../layout/MainLayout";
 import { Button, Card, Modal } from "../components/ui";
+import { FiFolder } from "react-icons/fi";
+
 
 export default function CreateProject() {
   const [projectName, setProjectName] = useState("");
@@ -154,7 +156,10 @@ export default function CreateProject() {
   return (
     <MainLayout>
       <Card>
-        <h2 className="text-2xl font-bold mb-6 text-green-700 text-center">📁 Create New Project</h2>
+        <h1 className="text-2xl font-bold text-[#1B1F1D] flex items-center gap-2">
+          <FiFolder className="text-green-600" size={24} />
+          Create New Project
+        </h1>
 
         {/* Project Name */}
         <div className="mb-5">

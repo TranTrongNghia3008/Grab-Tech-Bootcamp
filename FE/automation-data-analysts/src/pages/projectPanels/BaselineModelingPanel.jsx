@@ -1,114 +1,100 @@
 import { useState } from "react";
-import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { FaBalanceScale } from "react-icons/fa";
 import { Button, Card } from "../../components/ui";
+import DataTable from "../../components/DataTable";
+import SelectTargetFeaturesModel from "./SelectTargetFeatures";
+import AnalyzeModel from "./AnalyzeModel";
+import CompareModels from "./CompareModels";
 
 export default function BaselineModelingPanel() {
-    const [jobStatus, setJobStatus] = useState(null); // pending, running, done, error
-    //   const [jobId, setJobId] = useState(null);
-    const [metrics, setMetrics] = useState(null);
-    const [importances, setImportances] = useState(null);
+    const [target, setTarget] = useState("");
+    const [features, setFeatures] = useState([]);
+    const [jobStatus, setJobStatus] = useState(null);
+    const [comparisonResults, setComparisonResults] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    //   const datasetId = 123; 
+    const availableColumns = ["age", "income", "gender", "education", "experience"];
 
     const handleTrainBaseline = () => {
-        setLoading(true);
-        setJobStatus("pending");
+    if (!target || features.length === 0) {
+        alert("Please select target and feature columns.");
+        return;
+    }
 
-        // 🔁 Giả lập API gọi baseline training
-        setTimeout(() => {
-        //   const fakeJobId = "job_" + Date.now();
-        //   setJobId(fakeJobId);
+    setLoading(true);
+    setJobStatus("pending");
+
+    setTimeout(() => {
         setJobStatus("running");
 
-        // 🔁 Giả lập xử lý job và nhận kết quả
         setTimeout(() => {
-            setJobStatus("done");
-            setMetrics({
-            mse: 0.23,
-            r2: 0.81,
-            accuracy: 0.92
-            });
-            setImportances([
-            { feature: "age", importance: 0.45 },
-            { feature: "income", importance: 0.33 },
-            { feature: "gender", importance: 0.22 }
-            ]);
-            setLoading(false);
+        const tempComparisonResults = [
+            { modelId: "lr", modelName: "Logistic Regression", Accuracy: 0.8209, AUC: 0.855, Recall: 0.6699, Precision: 0.8313, F1: 0.7419, Kappa: 0.6072, MCC: 0.6155 },
+            { modelId: "ridge", modelName: "Ridge Classifier", Accuracy: 0.7528, AUC: 0.8647, Recall: 0.6023, Precision: 0.7521, F1: 0.6755, Kappa: 0.4273, MCC: 0.4679 },
+            { modelId: "et", modelName: "Extra Trees", Accuracy: 0.7400, AUC: 0.7837, Recall: 0.5555, Precision: 0.7233, F1: 0.6244, Kappa: 0.4088, MCC: 0.4356 },
+            { modelId: "nb", modelName: "Naive Bayes", Accuracy: 0.6709, AUC: 0.7925, Recall: 0.5011, Precision: 0.6322, F1: 0.5599, Kappa: 0.1808, MCC: 0.2747 },
+            { modelId: "knn", modelName: "K Neighbors", Accuracy: 0.6275, AUC: 0.5906, Recall: 0.4122, Precision: 0.5433, F1: 0.4671, Kappa: 0.1654, MCC: 0.1713 }
+        ]
+        setComparisonResults(tempComparisonResults);
+        
+        setJobStatus("done");
+        setLoading(false);
+        localStorage.setItem("comparisonResults", JSON.stringify(tempComparisonResults));
+        localStorage.setItem("best_model_id", "ridge");
+        console.log("Comparison results saved to localStorage:", tempComparisonResults);
         }, 2000);
-        }, 1000);
+    }, 1000);
+    
     };
 
+
+
     return (
-        <div className="space-y-6">
+        <div className="space-y-8">
             <h2 className="text-xl font-bold">Baseline Modeling</h2>
-            <div className="bg-green-50 border border-green-200 px-4 py-3 rounded-md text-sm text-green-900 shadow-sm">
-            📊 <span className="font-medium">Baseline Modeling</span> will automatically train a default model (e.g. Random Forest), evaluate it, and explain which features are most important.
-            </div>
-            
-            {/* Train Button */}
-            <div>
-                <Button
-                onClick={handleTrainBaseline}
-                disabled={loading || jobStatus === "running"}
-                >
-                {loading || jobStatus === "running" ? "Training..." : "Train Baseline"}
-                </Button>
+
+            <div className="bg-green-50 border border-green-200 px-4 py-3 rounded-md text-sm text-green-900">
+            Train default baseline models (Random Forest, Logistic Regression...), compare their performance and explain feature importance.
             </div>
 
-            {/* Status */}
-            {jobStatus && (
-                <div className="flex items-center gap-2 text-sm text-gray-700">
-                {jobStatus === "done" && <CheckCircle size={16} className="text-green-600" />}
-                {jobStatus === "error" && <AlertCircle size={16} className="text-red-600" />}
-                {jobStatus === "running" && <Loader2 size={16} className="animate-spin text-green-500" />}
-                {jobStatus === "pending" && <Loader2 size={16} className="animate-pulse text-yellow-500" />}
-                <span className="capitalize">Status: {jobStatus}</span>
-                </div>
+            {/* Select Target & Features */}
+            <SelectTargetFeaturesModel
+            availableColumns={availableColumns}
+            target={target}
+            setTarget={setTarget}
+            features={features}
+            setFeatures={setFeatures}
+            handleTrain={handleTrainBaseline}
+            loading={loading}
+            jobStatus={jobStatus}
+            trainLabel="Train Baseline"
+            showModelSelection={false}
+        />
+
+
+            
+            {/* Model Comparison */}
+            {comparisonResults.length > 0 && (
+            <Card className="space-y-4">
+                <h3 className="text-gray-800 text-xl mb-4 flex items-center gap-2">
+                    <FaBalanceScale/>
+                    Model Comparison
+                </h3>
+                <DataTable data={comparisonResults} />
+            </Card>
             )}
 
-            {/* Metrics */}
-            {metrics && (
-                <Card>
-                    <h3 className="text-xl font-semibold text-gray-800 mb-4">📈 Model Metrics</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    {Object.entries(metrics).map(([key, val]) => (
-                        <div
-                        key={key}
-                        className="border border-gray-200 rounded-lg px-4 py-3 bg-green-50 hover:shadow transition"
-                        >
-                        <p className="text-xs text-gray-500 uppercase tracking-wide">{key}</p>
-                        <p className="text-lg font-semibold text-green-700">
-                            {typeof val === "number" ? val.toFixed(3) : val}
-                        </p>
-                        </div>
-                    ))}
-                    </div>
-                </Card>
-                )}
+            {/* Analyze Model */}
+            {comparisonResults.length > 0 && (
+                <AnalyzeModel
+                availableModels={comparisonResults}
+                />
+            )}
 
 
-            {/* Feature Importances */}
-            {importances && (
-                <Card>
-                    <h3 className="font-semibold text-gray-800 text-xl mb-4">🧠 Feature Importances</h3>
-                    <div className="space-y-2">
-                        {importances.map((item, idx) => (
-                        <div key={idx} className="text-sm">
-                            <div className="flex justify-between mb-1">
-                            <span className="text-gray-700">{item.feature}</span>
-                            <span className="text-gray-600 font-medium">{(item.importance * 100).toFixed(1)}%</span>
-                            </div>
-                            <div className="w-full h-2 bg-gray-200 rounded">
-                            <div
-                                className="h-2 bg-green-500 rounded"
-                                style={{ width: `${item.importance * 100}%` }}
-                            ></div>
-                            </div>
-                        </div>
-                        ))}
-                    </div>
-                </Card>
+            {/* Compare Multiple Models */}
+            {comparisonResults.length > 0 && (
+            <CompareModels models={comparisonResults} />
             )}
         </div>
     );

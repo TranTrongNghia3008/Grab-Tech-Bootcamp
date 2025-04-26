@@ -1,6 +1,7 @@
 import { useState } from "react";
 import DataTable from "../components/DataTable";
 import MainLayout from "../layout/MainLayout";
+import { FiDatabase } from "react-icons/fi";
 
 
 const dataset = [
@@ -24,7 +25,15 @@ export default function DatasetsPage() {
   return (
     <MainLayout>
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
-            <h1 className="text-2xl font-bold text-[#1B1F1D]">Datasets</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-[#1B1F1D] flex items-center gap-2">
+            <FiDatabase className="text-green-600" size={24} />
+            Datasets
+          </h1>
+          <div className="w-8 h-8 rounded-md bg-green-100 text-green-700 flex items-center justify-center text-sm font-semibold">
+            {filteredData.length}
+          </div>
+        </div>
             
             {/* Search input */}
             <input

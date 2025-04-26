@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import MainLayout from "../layout/MainLayout";
 import { Button, Card, Modal } from "../components/ui";
 import { ArrowDownAZ, ArrowUpAZ, Calendar, Pencil, Trash2 } from "lucide-react";
+import { FiFolder } from "react-icons/fi";
 
 export default function Projects() {
   const navigate = useNavigate();
@@ -58,7 +59,14 @@ export default function Projects() {
     <MainLayout>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
-        <h1 className="text-2xl font-bold text-[#1B1F1D]">📁 My Projects</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-[#1B1F1D] flex items-center gap-2">
+            <FiFolder className="text-green-600" size={24} /> My Projects
+          </h1>
+          <div className="w-8 h-8 rounded-md bg-green-100 text-green-700 flex items-center justify-center text-sm font-semibold">
+            {filteredProjects.length}
+          </div>
+        </div>
         <Button onClick={handleCreateProject}>+ New Project</Button>
       </div>
 
