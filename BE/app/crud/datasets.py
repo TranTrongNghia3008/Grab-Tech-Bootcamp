@@ -7,3 +7,6 @@ def create_dataset(db: Session, connection_id: int, file_path: str) -> Dataset:
     db.commit()
     db.refresh(ds)
     return ds
+
+def get_dataset_by_id(db: Session, dataset_id: int) -> Dataset | None:
+    return db.query(Dataset).get(dataset_id)
