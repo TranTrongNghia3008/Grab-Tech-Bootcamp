@@ -14,3 +14,4 @@ class Dataset(Base):
     
     connections = relationship("Connection", back_populates="datasets")
     model_jobs = relationship('ModelJob', back_populates='datasets', cascade='all, delete-orphan')
+    cleaning_jobs = relationship('CleaningJob', back_populates='datasets', cascade='all, delete-orphan')
