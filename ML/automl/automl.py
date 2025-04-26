@@ -1,6 +1,7 @@
 import pandas as pd
 import pycaret.classification as pyclf
 import pycaret.regression as pyreg
+from sklearn.pipeline import Pipeline
 import time
 import numpy as np
 import os
@@ -9,6 +10,7 @@ import mlflow
 import datetime
 import logging
 import json
+import re
 from typing import List, Optional, Dict, Any, Tuple, Union
 
 # Import new dependencies
@@ -73,8 +75,8 @@ CONFIG = {
     "enable_feature_engineering": False, # Controls options like interaction/polynomial in setup_params_extra
 
     # --- Model Comparison Enhancements ---
-    "baseline_classification_models": ['lr', 'rf'],
-    "baseline_regression_models": ['lr', 'rf'],
+    "baseline_classification_models": ['lr', 'dt'],
+    "baseline_regression_models": ['lr', 'dt'],
     "sort_metric_classification": 'Accuracy',
     "sort_metric_regression": 'R2',
     "compare_include_models": None, # Optional: List of model IDs to include
@@ -109,6 +111,15 @@ CONFIG = {
     # --- Prediction Explanation ---
     "enable_prediction_explanation": True
 }
+
+
+def sanitize_filename(name: str) -> str:
+    """Removes or replaces characters unsuitable for filenames."""
+    # Remove most special characters, replace spaces/dots with underscore
+    name = re.sub(r'[^\w\-. ]', '', name) # Keep word chars, hyphen, dot, space
+    name = re.sub(r'[ .]+', '_', name) # Replace spaces/dots with underscore
+    return name
+
 class AutoMLRunner:
     """
     Encapsulates an enhanced AutoML workflow using PyCaret and MLflow,
@@ -140,6 +151,10 @@ class AutoMLRunner:
 
     # --- Internal Helper Methods ---
 
+
+
+    
+    
    # --- Internal Helper Methods ---
     def _generate_model_card(self, model_name, saved_model_base_path) -> str:
         """Generates a simple markdown model card string."""
@@ -285,28 +300,70 @@ class AutoMLRunner:
         else:
             logging.debug("No active run associated with this runner instance to end.")
    
-    def _log_plot_artifact(self, plot_function: callable, plot_name: str, **kwargs):
-        """Helper to generate, save, and log a plot artifact to the active MLflow run."""
+    def _log_plot_artifact(self, plot_function: callable, base_plot_name: str, model_name: str, **kwargs):
+        """
+        Helper to generate, save (with unique name), and log a plot artifact.
+
+        Args:
+            plot_function: The callable that generates the plot (e.g., plot_model).
+                        Must accept save=True.
+            base_plot_name: The generic name for the plot type (e.g., "Feature Importance").
+            model_name: The specific name of the model for uniqueness (e.g., "baseline_lr").
+            **kwargs: Additional arguments for the plot_function.
+        """
         if not self.active_mlflow_run_id:
             logging.warning("No active MLflow run to log plot artifact.")
             return
-        self._start_mlflow_run() # Ensure run is active
-        logging.info(f"Generating '{plot_name}' plot...")
-        plot_save_path = None
-        try:
-            plot_save_path = plot_function(save=True, verbose=False, **kwargs) # Pass save=True
-            logging.info(f"Plot saved locally to: {plot_save_path}")
+        # No need to call _start_mlflow_run here if called from within methods already in run context
+        # self._start_mlflow_run()
 
-            if plot_save_path and os.path.exists(plot_save_path):
+        logging.info(f"Generating '{base_plot_name}' plot for model '{model_name}'...")
+        original_save_path = None
+        new_save_path = None
+
+        try:
+            # Let pycaret save with its default name first
+            original_save_path = plot_function(save=True, verbose=False, **kwargs)
+            logging.info(f"Plot saved temporarily to: {original_save_path}")
+
+            if original_save_path and os.path.exists(original_save_path):
                 try:
-                    mlflow.log_artifact(plot_save_path)
-                    logging.info(f"Successfully logged plot artifact: {plot_save_path}")
-                except Exception as log_e:
-                    logging.error(f"Could not log plot artifact {plot_save_path}: {log_e}", exc_info=True)
+                    # --- Construct new unique filename ---
+                    dir_name = os.path.dirname(original_save_path)
+                    original_filename_with_ext = os.path.basename(original_save_path)
+                    # Use the base_plot_name provided for consistency, get extension from original
+                    _ , file_ext = os.path.splitext(original_filename_with_ext)
+                    if not file_ext: file_ext = ".png" # Default extension if needed
+
+                    sanitized_model_name = sanitize_filename(model_name)
+                    sanitized_base_plot_name = sanitize_filename(base_plot_name)
+                    new_filename = f"{sanitized_base_plot_name}_{sanitized_model_name}{file_ext}"
+                    new_save_path = os.path.join(dir_name, new_filename)
+
+                    # --- Rename the file ---
+                    logging.debug(f"Attempting to rename '{original_save_path}' to '{new_save_path}'")
+                    os.rename(original_save_path, new_save_path)
+                    logging.info(f"Renamed plot file to: {new_save_path}")
+
+                    # --- Log the renamed file ---
+                    mlflow.log_artifact(new_save_path)
+                    logging.info(f"Successfully logged plot artifact: {new_save_path}")
+
+                except Exception as log_rename_e:
+                    logging.error(f"Could not rename or log plot artifact. Original path: {original_save_path}, Target path: {new_save_path}. Error: {log_rename_e}", exc_info=True)
+                    # Optionally try logging the original path as a fallback
+                    if original_save_path and os.path.exists(original_save_path):
+                        try:
+                            mlflow.log_artifact(original_save_path, artifact_path="plots_unrenamed") # Log to subfolder
+                            logging.warning(f"Logged plot artifact with original name to 'plots_unrenamed': {original_save_path}")
+                        except Exception as fallback_e:
+                            logging.error(f"Fallback logging failed for {original_save_path}: {fallback_e}")
+
             else:
-                logging.warning(f"Plot file not found or path invalid for '{plot_name}'. Expected path: {plot_save_path}")
+                logging.warning(f"Plot file not found or path invalid after generation for '{base_plot_name}' model '{model_name}'. Expected path: {original_save_path}")
+
         except Exception as plot_e:
-            logging.error(f"Failed to generate or save plot '{plot_name}': {plot_e}", exc_info=True)
+            logging.error(f"Failed to generate or save plot '{base_plot_name}' for model '{model_name}': {plot_e}", exc_info=True)
 
     def _save_model_artifact(self, model_object: Any, model_stage_prefix: str, model_id: str) -> Optional[str]:
         """Helper to save a model artifact with timestamp and log path."""
@@ -394,6 +451,8 @@ class AutoMLRunner:
 
     # --- Feature Functions ---
     # set up necessary environment for AutoML and Pycaret for AUTOML PIPELINE
+    
+    
     def setup_automl_environment(self, data_path: str, target_column: str, feature_columns: Optional[List[str]] = None) -> Tuple[bool, Optional[str]]:
         """
         Loads data, validates, detects task type, profiles data (optional),
@@ -598,58 +657,59 @@ class AutoMLRunner:
                 try:
                     # Start a nested run for each baseline for isolated logging
                     with mlflow.start_run(run_id=self.active_mlflow_run_id, nested=True) as nested_run:
-                         mlflow.set_tag("model_type", "baseline")
-                         mlflow.set_tag("model_id", baseline_id)
+                        mlflow.set_tag("model_type", "baseline")
+                        mlflow.set_tag("model_id", baseline_id)
 
-                         baseline_model = self.pycaret_module.create_model(
-                             baseline_id, fold=self.config["baseline_folds"], verbose=False
-                         )
-                         self.baseline_models_trained[baseline_id] = baseline_model
-                         logging.info(f"Baseline model {baseline_id} created.")
+                        baseline_model = self.pycaret_module.create_model(
+                            baseline_id, fold=self.config["baseline_folds"], verbose=False
+                        )
+                        self.baseline_models_trained[baseline_id] = baseline_model
+                        logging.info(f"Baseline model {baseline_id} created.")
 
-                         logging.info(f"Evaluating Baseline Model: {baseline_id} on hold-out set...")
-                         # predict_model implicitly uses hold-out set after create_model
-                         hold_out_predictions = self.pycaret_module.predict_model(baseline_model, verbose=False)
-                         baseline_metrics_df = self.pycaret_module.pull() # metrics from predict_model evaluation
+                        logging.info(f"Evaluating Baseline Model: {baseline_id} on hold-out set...")
+                        # predict_model implicitly uses hold-out set after create_model
+                        hold_out_predictions = self.pycaret_module.predict_model(baseline_model, verbose=False)
+                        baseline_metrics_df = self.pycaret_module.pull() # metrics from predict_model evaluation
 
-                         print(f"Baseline {baseline_id} Hold-out Metrics:\n{baseline_metrics_df}")
+                        print(f"Baseline {baseline_id} Hold-out Metrics:\n{baseline_metrics_df}")
 
-                         # --- FIX 1: Filter metrics before logging ---
-                         metrics_to_log = {}
-                         if baseline_metrics_df is not None and not baseline_metrics_df.empty:
-                             raw_metrics_dict = baseline_metrics_df.iloc[0].to_dict()
-                             baseline_metrics_summary[baseline_id] = raw_metrics_dict # Store raw dict with model name
+                        # --- FIX 1: Filter metrics before logging ---
+                        metrics_to_log = {}
+                        if baseline_metrics_df is not None and not baseline_metrics_df.empty:
+                            raw_metrics_dict = baseline_metrics_df.iloc[0].to_dict()
+                            baseline_metrics_summary[baseline_id] = raw_metrics_dict # Store raw dict with model name
 
-                             for key, value in raw_metrics_dict.items():
-                                 # Explicitly skip non-numeric columns like 'Model'
-                                 if isinstance(value, (str, type(None))): # Skip strings and None
-                                     if key.lower() != 'model': # Log if skipping unexpected non-numeric
+                            for key, value in raw_metrics_dict.items():
+                                # Explicitly skip non-numeric columns like 'Model'
+                                if isinstance(value, (str, type(None))): # Skip strings and None
+                                    if key.lower() != 'model': # Log if skipping unexpected non-numeric
                                         logging.debug(f"Skipping non-numeric/None metric '{key}' for baseline {baseline_id}")
-                                     continue
-                                 try:
-                                     # Attempt conversion, allows bools/ints to become floats
-                                     metrics_to_log[key] = float(value)
-                                 except (ValueError, TypeError) as convert_err:
-                                     logging.warning(f"Could not convert metric '{key}' ({value}) to float for {baseline_id}: {convert_err}")
+                                    continue
+                                try:
+                                    # Attempt conversion, allows bools/ints to become floats
+                                    metrics_to_log[key] = float(value)
+                                except (ValueError, TypeError) as convert_err:
+                                    logging.warning(f"Could not convert metric '{key}' ({value}) to float for {baseline_id}: {convert_err}")
 
-                             logging.info(f"Logging numeric metrics for {baseline_id}: {metrics_to_log}")
-                             if metrics_to_log:
-                                 mlflow.log_metrics(metrics_to_log)
-                             else:
-                                 logging.warning(f"No valid numeric metrics found to log for baseline {baseline_id}.")
-                         else:
-                             logging.warning(f"Could not pull metrics for baseline {baseline_id} after prediction.")
-                         # --- End FIX 1 ---
+                            logging.info(f"Logging numeric metrics for {baseline_id}: {metrics_to_log}")
+                            if metrics_to_log:
+                                mlflow.log_metrics(metrics_to_log)
+                            else:
+                                logging.warning(f"No valid numeric metrics found to log for baseline {baseline_id}.")
+                        else:
+                            logging.warning(f"Could not pull metrics for baseline {baseline_id} after prediction.")
+                        # --- End FIX 1 ---
 
-                         # Log feature importance plot
-                         self._log_plot_artifact(
-                             plot_function=lambda save, verbose, **kwargs: self.pycaret_module.plot_model(baseline_model, plot='feature', save=save, verbose=verbose, **kwargs),
-                             plot_name=f"Feature Importance (Baseline {baseline_id})"
-                         )
+                        # Log feature importance plot
+                        self._log_plot_artifact(
+                            plot_function=lambda save, verbose, **kwargs: self.pycaret_module.plot_model(baseline_model, plot='feature', save=save, verbose=verbose, **kwargs),
+                            base_plot_name=f"Feature Importance" , # Generic plot type name 
+                            model_name = f"baseline_{baseline_id}"# Specific model identifier
+                        )
 
-                         # Save baseline model artifact locally
-                         self._save_model_artifact(baseline_model, "baseline", baseline_id)
-                         mlflow.set_tag("status", "completed")
+                        # Save baseline model artifact locally
+                        self._save_model_artifact(baseline_model, "baseline", baseline_id)
+                        mlflow.set_tag("status", "completed")
 
                 except Exception as e:
                     logging.error(f"Error processing baseline model '{baseline_id}': {e}", exc_info=False) # Keep log concise
@@ -949,7 +1009,8 @@ class AutoMLRunner:
                     # Generate and log the plot artifact
                     self._log_plot_artifact(
                          plot_function=lambda save, verbose, **kwargs: self.pycaret_module.plot_model(model_object, plot='feature', save=save, verbose=verbose, **kwargs),
-                         plot_name=f"Feature Importance ({model_name})"
+                         base_plot_name="Feature Importance", # Generic plot type name
+                        model_name= model_name # Specific model identifier
                     )
                     analysis_results["feature_importances_plot_generated"] = True
 
@@ -983,12 +1044,11 @@ class AutoMLRunner:
                      # Still generate and log the plot
                      self._log_plot_artifact(
                           plot_function=lambda save, verbose, **kwargs: self.pycaret_module.plot_model(model_object, plot='feature', save=save, verbose=verbose, **kwargs),
-                          plot_name=f"Feature Importance ({model_name})"
+                          base_plot_name="SHAP Summary Plot", # Generic plot type name
+                            model_name=model_name # Pass the specific model name
                      )
                 except Exception as fi_e:
                      logging.error(f"Failed to generate/log feature importance for {model_name}: {fi_e}")
-                # ... (try/except block for feature importance extraction and plotting) ...
-                # Make sure self._log_plot_artifact is called correctly inside this block
 
                 # --- Conditionally Log SHAP Summary Plot ---
                 # (Keep existing conditional SHAP logic here)
@@ -1001,7 +1061,8 @@ class AutoMLRunner:
                      logging.info(f"Model type '{model_id_approx}' supports SHAP summary plot via interpret_model.")
                      self._log_plot_artifact(
                          plot_function=lambda save, verbose, **kwargs: self.pycaret_module.interpret_model(model_object, plot='summary', save=save), # removed verbose
-                         plot_name=f"SHAP Summary Plot ({model_name})"
+                         base_plot_name="SHAP Summary Plot", # Generic plot type name
+                        model_name=model_name # Pass the specific model name
                      )
                 else:
                      logging.warning(f"SHAP summary plot via interpret_model() is not supported by PyCaret for model type '{model_id_approx}' in task '{self.task_type}'. Skipping SHAP summary plot generation.")
@@ -1016,7 +1077,6 @@ class AutoMLRunner:
                 analysis_results["shap_summary_plot_generated"] = can_run_shap
                 # analysis_results["shap_values"] = shap_values_data # Add if implemented
 
-                # ... (if condition to check model type and call self._log_plot_artifact) ...
 
                 mlflow.set_tag("status", "completed")
 
@@ -1289,99 +1349,130 @@ class AutoMLRunner:
         if model_object is None:
             return None
 
-        # 2. Preprocess the single instance using the pipeline
-        # predict_model applies the pipeline, but we need the transformed data for SHAP
-        # We need the fitted preprocessor from the setup phase
-        if self.preprocessor is None:
-            logging.error("Preprocessor not available (was setup run in this instance?). Cannot apply transformations for SHAP.")
-            # Hacky fallback: Try getting preprocessor from loaded model IF it's the full pipeline
-            if hasattr(model_object, 'steps'):
-                self.preprocessor = model_object
-            else:
+        # --- FIX: Separate Preprocessor and Estimator from LOADED model ---
+        final_estimator = None
+        preprocessor_pipeline = None
+        transformed_instance = None
+
+        if hasattr(model_object, 'steps'): # Check if it's a scikit-learn Pipeline
+            try:
+                if len(model_object.steps) > 1:
+                    # Create a new pipeline containing all steps EXCEPT the last one
+                    preprocessor_pipeline = Pipeline(model_object.steps[:-1])
+                    # Extract the final estimator object (it's the second item in the step tuple)
+                    final_estimator = model_object.steps[-1][1]
+                    logging.info(f"Successfully separated preprocessor and final estimator ({type(final_estimator).__name__}).")
+                elif len(model_object.steps) == 1: # Pipeline with only the model (no preprocessing?)
+                     logging.warning("Loaded pipeline has only one step. Assuming it's the final estimator.")
+                     final_estimator = model_object.steps[0][1]
+                     preprocessor_pipeline = None # No preprocessing steps
+                else: # Empty pipeline?
+                     logging.error("Loaded pipeline has no steps.")
+                     return None
+
+            except Exception as e:
+                logging.error(f"Failed to reconstruct preprocessor pipeline or extract estimator: {e}", exc_info=True)
                 return None
+        else:
+            # If the loaded object isn't a pipeline, assume it's just the estimator
+            logging.warning("Loaded model object is not a scikit-learn Pipeline. Assuming it's the final estimator with no preprocessing.")
+            final_estimator = model_object
+            preprocessor_pipeline = None
 
-
+        # 2. Preprocess the single instance using the extracted steps (if any)
         try:
             # Ensure data_instance is a DataFrame
             if not isinstance(data_instance, pd.DataFrame):
-                data_instance = pd.DataFrame([data_instance]) # Assume dict or Series passed
+                data_instance = pd.DataFrame([data_instance]) # Assume dict or Series
 
-            # Apply preprocessing EXCLUDING the final estimator
-            # Need to find the estimator step name
-            estimator_step_name = 'actual_estimator' # Default for PyCaret 3+
-            final_estimator = None
-            if hasattr(self.preprocessor, 'named_steps') and estimator_step_name in self.preprocessor.named_steps:
-                final_estimator = self.preprocessor.named_steps[estimator_step_name]
-                # Create pipeline without the final estimator
-                preprocessor_only_pipeline = joblib.load(f"{model_base_path}.pkl") # Reload fresh pipeline
-                # Remove the final step - safer way might be needed
-                preprocessor_only_pipeline.steps.pop(-1)
-                transformed_instance = preprocessor_only_pipeline.transform(data_instance)
+            if preprocessor_pipeline:
+                logging.info("Applying preprocessing steps to data instance...")
+                # Ensure columns match what pipeline expects - requires user to pass correct df
+                transformed_instance = preprocessor_pipeline.transform(data_instance)
+                logging.info("Preprocessing complete.")
             else:
-                # Simpler model (not pipeline) or different pipeline structure?
-                logging.warning("Could not isolate preprocessor steps easily. Applying full pipeline and extracting estimator.")
-                # This might be problematic if preprocessing affects SHAP values differently than predict_model
-                final_estimator = model_object # Assume it's just the model if not a pipeline
-                transformed_instance = data_instance # Assume no preprocessing if not a pipeline? Risky.
-                # SAFER: Explicitly require preprocessor state or fail here.
-                logging.error("Cannot reliably separate preprocessing for SHAP on this model structure.")
-                return None
+                logging.info("No preprocessing steps found to apply.")
+                transformed_instance = data_instance # Use original data if no preprocessor
+
+        except Exception as e:
+            logging.error(f"Failed to apply preprocessing pipeline to data instance: {e}", exc_info=True)
+            return None
+        # --- End FIX ---
 
 
-            # Convert sparse matrix if necessary
+        # 3. Initialize SHAP Explainer based on model type
+        if final_estimator is None:
+             logging.error("Final estimator could not be determined.")
+             return None
+        if transformed_instance is None:
+             logging.error("Transformed instance data is not available.")
+             return None
+
+        try:
+            logging.info(f"Initializing SHAP explainer for model type: {type(final_estimator).__name__}")
+
+            # Convert sparse matrix to dense if needed by explainer/model type
+            # Some SHAP explainers work better with dense data
             if hasattr(transformed_instance, "toarray"):
-                transformed_instance = transformed_instance.toarray()
-            # Convert to DataFrame for SHAP explainer if needed
-            if not isinstance(transformed_instance, pd.DataFrame):
-                # Get feature names AFTER transformation
-                # This is complex - PyCaret's setup stores transformed feature names
                 try:
-                    feature_names_out = self.setup_env.pipeline[:-1].get_feature_names_out() # Try getting names from preprocessor steps
-                except:
-                    logging.warning("Could not get transformed feature names, using generic names.")
-                    feature_names_out = [f"feature_{i}" for i in range(transformed_instance.shape[1])]
+                     transformed_instance_dense = transformed_instance.toarray()
+                except Exception as dense_err:
+                     logging.warning(f"Could not convert transformed data to dense array: {dense_err}. Proceeding with original.")
+                     transformed_instance_dense = transformed_instance # Use original sparse if fails
+            else:
+                transformed_instance_dense = transformed_instance
 
-                transformed_instance = pd.DataFrame(transformed_instance, columns=feature_names_out)
+            # Choose appropriate SHAP explainer
+            # Note: Background data (like self.train_data transformed) might be needed for some explainers (e.g., Kernel)
+            # For simplicity, we start with shap.Explainer which tries to auto-detect.
+            # Background data might be needed for KernelExplainer for better results.
+            # background_data = shap.sample(transformed_training_data, 100) # Needs transformed training data
+            explainer = shap.Explainer(final_estimator, transformed_instance_dense) # Pass dense version
+            logging.info(f"Using SHAP explainer: {type(explainer)}")
 
 
-            # 3. Initialize SHAP Explainer based on model type
-            logging.info(f"Initializing SHAP explainer for model type: {type(final_estimator)}")
-            explainer = shap.Explainer(final_estimator, transformed_instance) # KernelExplainer might be safer default? TreeExplainer faster if applicable
-            # explainer = shap.KernelExplainer(final_estimator.predict_proba if task_type=='classification' else final_estimator.predict, transformed_instance)
-
-            # 4. Calculate SHAP values for the instance
-            shap_values = explainer(transformed_instance) # Calculate for the single transformed instance
-
+            # 4. Calculate SHAP values for the instance(s)
+            # Use the dense data for calculation as well if converted
+            shap_values = explainer(transformed_instance_dense)
             logging.info("SHAP values calculated.")
 
-            # 5. Format Output (e.g., return values, base value)
-            # shap_values structure depends on explainer and model output (multi-class etc.)
-            # Example for typical case:
+            # 5. Format Output
             base_value = explainer.expected_value
-            instance_shap_values = shap_values.values[0] # Values for the first (only) instance
+            # Handle multi-output (e.g., classification probabilities) for base_value and shap_values
+            if isinstance(base_value, (list, np.ndarray)): base_value = base_value[0] # Example: Take first output's base value
+            if isinstance(shap_values.values, (list, np.ndarray)) and len(shap_values.values.shape) > 2:
+                 # Multi-class output: shap_values.values shape might be (n_samples, n_features, n_classes)
+                 # Take values for the first sample, and perhaps the class with highest probability? Or sum across classes?
+                 # Let's take values for the first output/class for simplicity here.
+                 instance_shap_values = shap_values.values[0, :, 0] # SHAP values for sample 0, class 0
+                 logging.warning("SHAP values appear multi-output; showing explanation for the first output class.")
+            else:
+                  instance_shap_values = shap_values.values[0] # Values for the first (only) instance/output
+
+            # Feature names might come from shap_values object or need to be inferred
             feature_names = shap_values.feature_names
+            if feature_names is None:
+                 # Fallback if SHAP couldn't get names (e.g., from DataFrame)
+                 if isinstance(transformed_instance_dense, pd.DataFrame):
+                      feature_names = transformed_instance_dense.columns.tolist()
+                 else: # Try getting from original setup if available (less reliable here)
+                      try:
+                         feature_names = self.setup_env.X_train.columns.tolist()
+                      except:
+                          feature_names = [f"feature_{i}" for i in range(transformed_instance_dense.shape[1])]
+
 
             explanation = {
-                "base_value": base_value.tolist() if hasattr(base_value, 'tolist') else base_value,
-                "shap_values": instance_shap_values.tolist() if hasattr(instance_shap_values, 'tolist') else instance_shap_values,
-                "feature_names": feature_names,
-                "data_instance": data_instance.iloc[0].to_dict() # Original data
+                 "base_value": base_value.tolist() if hasattr(base_value, 'tolist') else base_value,
+                 "shap_values": instance_shap_values.tolist() if hasattr(instance_shap_values, 'tolist') else instance_shap_values,
+                 "feature_names": feature_names,
+                 "data_instance": data_instance.iloc[0].to_dict() # Original untransformed data
             }
-
-            # Optionally generate and save force plot (requires matplotlib)
-            # try:
-            #     shap.force_plot(explainer.expected_value, shap_values[0], data_instance.iloc[0], show=False, matplotlib=True)
-            #     plt.savefig("temp_force_plot.png")
-            #     # Log plot to MLflow if needed
-            #     plt.close()
-            # except Exception as plot_e:
-            #     logging.warning(f"Could not generate SHAP force plot: {plot_e}")
-
 
             return explanation
 
         except Exception as e:
-            logging.error(f"Failed to explain prediction: {e}", exc_info=True)
+            logging.error(f"Failed during SHAP explanation calculation: {e}", exc_info=True)
             return None
 
     def predict_on_new_data(self, new_data: pd.DataFrame, model_base_path: Optional[str] = None) -> Optional[pd.DataFrame]:
