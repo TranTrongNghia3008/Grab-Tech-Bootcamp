@@ -4,7 +4,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 import logging
 import time
 
-from app.api.v1.endpoints import connections, eda, datasets
+from app.api.v1.endpoints import connections, eda, datasets, model_jobs
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -33,6 +33,7 @@ async def dispatch(request: Request, call_next):
 app.include_router(connections.router)
 app.include_router(datasets.router)
 app.include_router(eda.router)
+app.include_router(model_jobs.router)
 
 @app.get('/')
 async def main():

@@ -30,7 +30,7 @@ async def upload_datasets(file: UploadFile = File(...), db: Session = Depends(ge
     df = pd.read_csv(io.StringIO(decoded))
     
     # Save to DB
-    ds = create_dataset(db, connection_id=0, file_path="")
+    ds = create_dataset(db, connection_id=None, file_path="")
     filename = f"dataset_{ds.id}.csv"
     path = save_dataframe_as_csv(df, filename)
     
