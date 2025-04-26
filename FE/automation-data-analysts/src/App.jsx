@@ -5,6 +5,7 @@ import Projects from './pages/Projects';
 import ProjectDetail from './pages/ProjectDetail';
 import CreateProject from './pages/CreateProject';
 import DatasetsPage from './pages/Datasets';
+import Home from './pages/Home';
 
 function App() {
 
@@ -12,6 +13,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<Home />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/projects" element={<Projects />} />
         <Route path="/datasets" element={<DatasetsPage />} />

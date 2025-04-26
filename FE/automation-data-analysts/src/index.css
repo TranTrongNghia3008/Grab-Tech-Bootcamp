@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "GrabCommunityInline";
+  src: url("/fonts/Grab_Community_Inline.otf") format("opentype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+
 /* :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;

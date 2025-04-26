@@ -64,7 +64,7 @@ export default function ProjectDetail() {
       </div>
 
       {/* Content */}
-      <div className="px-10 space-y-6">
+      <div className="px-10 pb-10 space-y-6">
         {activeTab === "Prepare" && <PreparePanel />}
         {activeTab === "EDA" && <EDAPanel />}
         {activeTab === "Baseline Modeling" && <BaselineModelingPanel />}
