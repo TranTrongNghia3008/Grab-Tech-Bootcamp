@@ -2,10 +2,13 @@ from pydantic import BaseModel
 from typing import Dict, Any, Literal, Optional
 
 class CleaningConfig(BaseModel):
-    impute_missing: Optional[Dict[str, Any]] = None
-    filter_outliers: Optional[Dict[str, Any]] = None
-    drop_duplicates: bool = True
-    enforce_types: Optional[Dict[str, str]] = None
+    remove_duplicates: bool = False
+    handle_missing_values: bool = False
+    smooth_noisy_data: bool = False
+    handle_outliers: bool = False
+    reduce_cardinality: bool = False
+    encode_categorical_values: bool = False
+    feature_scaling: bool = False
 
 class CleaningPreview(BaseModel):
     missing: Dict[str, int]
@@ -30,4 +33,4 @@ class CleaningJobOut(BaseModel):
     results: Optional[Dict[str, Any]]
 
     class Config:
-        orm_mode = True
+        from_attributes = True

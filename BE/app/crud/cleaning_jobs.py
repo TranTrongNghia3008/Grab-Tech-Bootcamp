@@ -11,7 +11,7 @@ def create_cleaning_job(db: Session, dataset_id: int, config: dict) -> CleaningJ
     db.refresh(job)
     return job
 
-def update_cleaning_job(db: Session, dataset_id: int, job: CleaningJob, **kwargs) -> CleaningJob:
+def update_cleaning_job(db: Session, job: CleaningJob, **kwargs) -> CleaningJob:
     for k, v in kwargs.items():
         setattr(job, k, v)
     
