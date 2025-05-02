@@ -11,7 +11,7 @@ from app.services.cleaning_service import (
     update_cleaning, delete_cleaning
 )
 
-from app.crud.cleaning_jobs import get_cleaning_job_by_id
+from app.crud.cleaning_jobs import crud_cleaning_job
 
 router = APIRouter(prefix="/v1", tags=["cleaning"])
 
@@ -28,7 +28,7 @@ def post_cleaning(
 ):
     job_id = schedule_cleaning(dataset_id, config.dict(), db)
     background_tasks.add_task(run_cleaning_job, job_id)
-    job = get_cleaning_job_by_id(db, job_id)
+    job = crud_cleaning_job.get(db, job_id)
     return job
 
 @router.get("/cleaning/{job_id}/status", response_model=CleaningStatus)

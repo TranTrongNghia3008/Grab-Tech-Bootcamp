@@ -3,7 +3,7 @@ from typing import Optional
 import datetime
 
 class FinalizedModelResponse(BaseModel): # Response schema
-    id: UUID4 # Keep UUID if model uses it
+    id: int
     session_id: int # Matches AutoMLSession.id type
     model_name: str
     saved_model_path: str

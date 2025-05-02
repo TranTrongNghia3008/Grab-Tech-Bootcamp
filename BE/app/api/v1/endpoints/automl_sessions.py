@@ -1,10 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Path, UploadFile, File
 from sqlalchemy.orm import Session # Sync Session
-from uuid import UUID # Still needed if FinalizedModel uses UUID
-from typing import Any # For Any response model if needed later
+from uuid import UUID
+from typing import Any # For Any response model
 from app import schemas
 from app.services import automl_service
 from app.api.v1.dependencies import get_db
+from starlette.responses import StreamingResponse # Needed for CSV response
+import io # Needed for creating in-memory file for response
+from app.crud.finalized_models import crud_finalized_model
+import pandas as pd
+import base64
+
 
 # Define the API router
 router = APIRouter(
@@ -158,12 +164,9 @@ def start_automl_step3_endpoint(
     - `model_name_override` (string, optional): Provide a specific name for the saved final model artifact.
     """
     try:
-        # Use Body(None) if the request body is truly optional,
-        # otherwise use Body(...) if some params are expected.
-        # If params can be None, handle it in the service layer or use default empty object
         request_params = params if params is not None else schemas.AutoMLSessionStartStep3Request()
 
-        # Call the NEW service function for Step 3
+        # Call function for Step 3
         result = automl_service.run_step3_finalize_and_save(db, session_id, request_params)
         return result
     except HTTPException as http_exc:
@@ -173,4 +176,127 @@ def start_automl_step3_endpoint(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An unexpected internal error occurred during AutoML Step 3: {e}"
+        )
+
+@router.post(
+    "/finalized_models/{finalized_model_id}/predict",
+    # --- CHANGED: Use the new JSON response schema ---
+    response_model=schemas.PredictionResponse,
+    summary="Predict from Uploaded CSV and Return Preview (Sync & Blocking)",
+    status_code=status.HTTP_200_OK,
+    responses={
+        # --- CHANGED: Describe the new JSON response ---
+        status.HTTP_200_OK: {
+            "model": schemas.PredictionResponse,
+            "description": "Returns a JSON object containing a preview (first 10 rows) of the predictions.",
+        },
+        status.HTTP_404_NOT_FOUND: {"model": schemas.AutoMLSessionErrorResponse, "description": "Finalized Model or associated data not found"},
+        status.HTTP_400_BAD_REQUEST: {"model": schemas.AutoMLSessionErrorResponse, "description": "Invalid, empty, or unparseable CSV file"},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": schemas.AutoMLSessionErrorResponse, "description": "Prediction failed or Internal Error"}
+    }
+)
+async def predict_with_finalized_model_csv_endpoint( # Still async for file reading
+    *,
+    finalized_model_id: int = Path(..., description="The ID of the finalized model to use."),
+    db: Session = Depends(get_db),
+    file: UploadFile = File(..., description="CSV file containing the data to predict on.")
+):
+    """
+    Makes predictions by uploading a CSV file to a finalized AutoML model
+    and returns a JSON response with a **preview** of the first 10 rows.
+
+    - Reads the uploaded CSV file.
+    - Fetches the specified finalized model artifact path and configuration.
+    - Loads the model pipeline.
+    - Applies the pipeline to the data from the CSV.
+    - Optionally performs data drift check (if configured in the runner).
+    - Returns a **JSON object** containing the first 10 rows (or fewer) of the
+      original data plus the prediction columns.
+    - **BLOCKS** until prediction completes or fails.
+    - **Does not store** the uploaded data or prediction results in the database.
+    - **Does not return** the full prediction results file via this endpoint.
+
+    **Path Parameter:**
+    - `finalized_model_id` (integer): The unique ID of the `FinalizedModel` record.
+
+    **File Upload:**
+    - `file`: The request must contain a file upload with the key `file`, holding the CSV data.
+             The CSV header must match the feature columns used during model training.
+    """
+    # Basic check for CSV MIME type (optional but recommended)
+    if file.content_type not in ['text/csv', 'application/vnd.ms-excel', 'text/plain']: # Allow text/plain sometimes
+         await file.close() # Close the file before raising
+         raise HTTPException(
+             status_code=status.HTTP_400_BAD_REQUEST,
+             detail=f"Invalid file type. Please upload a CSV file. Received: {file.content_type}"
+         )
+
+    result_df = None # Initialize
+    full_csv_base64_str = None
+    try:
+        # Call the service function - it returns the FULL DataFrame
+        result_df = await automl_service.run_prediction_from_csv(db, finalized_model_id, file) # File is closed inside service
+
+        # --- Generate Preview ---
+        preview_rows = min(5, len(result_df))
+        preview_df = result_df.head(preview_rows).copy() # Take first N rows
+        total_rows = len(result_df)
+
+        # --- Convert Preview DataFrame to Schema Format ---
+        try:
+            # Ensure index is reset if needed, handle potential NaNs for JSON conversion
+            df_for_schema = preview_df.reset_index(drop=True)
+            data_list = df_for_schema.astype(object).where(pd.notnull(df_for_schema), None).values.tolist()
+            preview_schema = schemas.DataFrameStructure(
+                columns=df_for_schema.columns.tolist(),
+                data=data_list
+            )
+        except Exception as convert_e:
+            # Log the error internally if needed
+            print(f"Error converting preview DataFrame to schema: {convert_e}")
+            raise HTTPException(status_code=500, detail="Failed to format prediction preview results.")
+        
+        # --- Generate Full CSV String and Base64 Encode ---
+        try:
+            stream = io.StringIO()
+            result_df.to_csv(stream, index=False)
+            stream.seek(0)
+            csv_string = stream.getvalue()
+            # Encode: string -> bytes (utf-8) -> base64 bytes -> string (utf-8)
+            base64_bytes = base64.b64encode(csv_string.encode('utf-8'))
+            full_csv_base64_str = base64_bytes.decode('utf-8')
+            stream.close() # Close the string buffer
+        except Exception as encode_e:
+            print(f"Error encoding full CSV to base64: {encode_e}")
+            # Decide if this is fatal or just skip the full csv
+            full_csv_base64_str = None # Or raise HTTPException
+
+        # --- Fetch session_id (needed for response schema) ---
+        # We could refactor the service to return it, or fetch it again briefly
+        db_finalized_model = crud_finalized_model.get(db, id=finalized_model_id) # Assumes model still exists
+        session_id = db_finalized_model.session_id if db_finalized_model else -1 # Fallback
+
+        # --- Construct the JSON Response ---
+        response_data = schemas.PredictionResponse(
+            session_id=session_id,
+            finalized_model_id=finalized_model_id,
+            preview_predictions=preview_schema,
+            total_rows_processed=total_rows,
+            full_csv_base64=full_csv_base64_str
+            # message is set by default in the schema
+        )
+        return response_data
+
+    except HTTPException as http_exc:
+        # Re-raise known HTTP errors (e.g., file read errors, model not found)
+        raise http_exc
+    except Exception as e:
+        # Catch unexpected errors during processing or preview generation
+        print(f"FATAL: Unexpected error in CSV prediction endpoint for model {finalized_model_id}: {e}")
+        # Ensure file is closed if error happened before service call finished
+        if file and not file.is_closed:
+             await file.close()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected internal error occurred during CSV prediction processing: {e}"
         )

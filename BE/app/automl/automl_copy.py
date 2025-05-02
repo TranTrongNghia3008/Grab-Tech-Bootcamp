@@ -18,7 +18,6 @@ import pycaret # Keep for version check if needed elsewhere
 import inspect # Needed for _log_plot_artifact
 import matplotlib.pyplot as plt # Needed for _log_plot_artifact workaround
 
-# --- Add New Imports with Error Handling ---
 try:
     from ydata_profiling import ProfileReport
 except ImportError:
@@ -40,7 +39,7 @@ except ImportError:
     logging.warning("shap not found. Run 'pip install shap' to enable prediction explanations.")
 
 
-# --- Basic Logging Setup (Keep from Code 1) ---
+# --- Basic Logging Setup ---
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - [%(name)s:%(lineno)d] - [%(funcName)s] - %(message)s'
@@ -53,7 +52,6 @@ logger = logging.getLogger(__name__) # Use module-specific logger
 _CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_CONFIG_PATH = os.path.join(_CURRENT_DIR, 'config.yaml')
 
-# --- NEW: Helper from Code 2 ---
 def sanitize_filename(name: str) -> str:
     """Removes or replaces characters unsuitable for filenames."""
     # Remove most special characters, replace spaces/dots with underscore
@@ -61,7 +59,6 @@ def sanitize_filename(name: str) -> str:
     name = re.sub(r'[ .]+', '_', name) # Replace spaces/dots with underscore
     return name
 
-# --- UPDATED: load_config ---
 def load_config(config_path: str = DEFAULT_CONFIG_PATH) -> Dict[str, Any]:
     """
     Loads configuration from a YAML file.
@@ -84,7 +81,6 @@ def load_config(config_path: str = DEFAULT_CONFIG_PATH) -> Dict[str, Any]:
              raise ValueError(f"Configuration file {config_path} is not a valid YAML dictionary.")
         logger.info("Configuration loaded successfully.")
 
-        # --- Defaulting Logic (Essential + New Features) ---
         if 'session_id' not in config or config.get('session_id') is None:
             config['session_id'] = int(time.time())
             logger.info(f"Using generated session_id: {config['session_id']}")
@@ -94,7 +90,6 @@ def load_config(config_path: str = DEFAULT_CONFIG_PATH) -> Dict[str, Any]:
             logger.warning(f"output_base_dir not specified. Defaulting to CWD-relative path: '{default_output_dir}'.")
             config['output_base_dir'] = default_output_dir
 
-        # --- Defaults for NEW optional features ---
         config.setdefault('run_data_profiling', False)
         config.setdefault('profile_report_name', "data_profile_report.html")
         config.setdefault('enable_drift_check_on_predict', False)
@@ -105,31 +100,27 @@ def load_config(config_path: str = DEFAULT_CONFIG_PATH) -> Dict[str, Any]:
         config.setdefault('mlflow_model_stage', "Staging")
         config.setdefault('enable_prediction_explanation', False)
         config.setdefault('shap_enabled_if_possible', False) # More specific control for SHAP in analysis step
-        config.setdefault('optimize_pandas_dtypes', True) # Keep from code 1
-        config.setdefault('use_sampling_in_setup', False) # Keep from code 1
-        config.setdefault('save_baseline_models', False) # Keep from code 1
-        config.setdefault('analyze_tuned_step2', True) # Keep from code 1
+        config.setdefault('optimize_pandas_dtypes', True) 
+        config.setdefault('use_sampling_in_setup', False) 
+        config.setdefault('save_baseline_models', False)
+        config.setdefault('analyze_tuned_step2', True) 
 
-        # Add new setup/tuning params if desired, e.g.:
         config.setdefault('setup_params_extra', {}) # To pass arbitrary params to setup
         config.setdefault('tuning_search_library', 'scikit-learn') # Default tuning lib
         config.setdefault('tuning_search_algorithm', 'random') # Default tuning algo
 
         # --- Validate essential keys needed by the runner ---
-        # Add new keys that are MANDATORY if the feature is used
         required_keys_for_runner = [
             "session_id", "output_base_dir", "experiment_name", "mlflow_tracking_uri",
             "data_file_path", "target_column",
             "numeric_imputation", "unique_value_threshold_for_classification",
             "sort_metric_classification", "optimize_metric_classification",
             "sort_metric_regression", "optimize_metric_regression",
-            # Add others if needed, like tuning iterations if tuning is mandatory
             "baseline_folds", "tuning_folds", "tuning_iterations"
         ]
         missing_keys = [k for k in required_keys_for_runner if k not in config] # Check only required ones
         if missing_keys:
             logger.warning(f"Config might be missing keys expected by runner steps: {missing_keys}")
-            # Don't raise error here, let the runner step fail if needed
 
         return config
     except FileNotFoundError:
@@ -142,7 +133,6 @@ def load_config(config_path: str = DEFAULT_CONFIG_PATH) -> Dict[str, Any]:
         logger.error(f"Error loading or validating configuration from '{config_path}': {e}", exc_info=True)
         raise
 
-# --- UPDATED: optimize_dtypes (Accept config) ---
 def optimize_dtypes(df: pd.DataFrame, config: Dict[str, Any]) -> pd.DataFrame: # Add config parameter
     """
     (Helper) Downcast numeric columns and convert low-cardinality objects to 'category'.
@@ -218,7 +208,6 @@ def optimize_dtypes(df: pd.DataFrame, config: Dict[str, Any]) -> pd.DataFrame: #
             if len(df_opt[col]) > 0 and df_opt[col].dtype != 'category':
                 try:
                     num_unique = df_opt[col].nunique()
-                    # Adjust threshold (0.5 == 50%) as needed, make configurable?
                     # Use the passed config dictionary HERE
                     category_threshold = config.get("category_conversion_threshold", 0.5)
                     if num_unique / len(df_opt[col]) < category_threshold:
@@ -271,7 +260,10 @@ class AutoMLRunner:
         self.model_save_dir = os.path.join(self.session_dir, "models")
         self.plot_save_dir = os.path.join(self.session_dir, "plots")
         self.experiment_save_dir = os.path.join(self.session_dir, "experiments")
-        self.report_save_dir = os.path.join(self.session_dir, "reports") # NEW for reports
+        self.report_save_dir = os.path.join(self.session_dir, "reports") # for reports
+        self.last_feature_importance_plot_path: Optional[str] = None # Store plot path
+        self.last_tuned_cv_results_df: Optional[pd.DataFrame] = None # Store tuning CV results
+        self.last_tuned_best_params: Optional[Dict] = None # Store best params
 
         # --- Create directories idempotently ---
         try:
@@ -288,8 +280,8 @@ class AutoMLRunner:
 
         # --- Transient State Variables (Includes new ones) ---
         self.data: Optional[pd.DataFrame] = None # Holds data loaded in Step 1
-        self.train_data: Optional[pd.DataFrame] = None # NEW: Data used for training (post-split/sampling)
-        self.test_data: Optional[pd.DataFrame] = None # NEW: Hold-out data from setup
+        self.train_data: Optional[pd.DataFrame] = None # Data used for training (post-split/sampling)
+        self.test_data: Optional[pd.DataFrame] = None # Hold-out data from setup
         self.task_type: Optional[str] = self.config.get("task_type")
         self.pycaret_module: Optional[Any] = None
         self.sort_metric: Optional[str] = None
@@ -299,14 +291,14 @@ class AutoMLRunner:
         self.results_df: Optional[pd.DataFrame] = None # Holds result of compare_models() within step 1
         self.tuned_best_model: Optional[Any] = None # Holds result of tune_model() within step 2
         self.final_model: Optional[Any] = None # Holds result of finalize_model() within step 3
-        self.latest_analysis_metrics: Optional[Dict] = None # NEW: Store metrics from analysis for model card
-        self.training_data_profile_path: Optional[str] = None # NEW: Path to data profile report
+        self.latest_analysis_metrics: Optional[Dict] = None # Store metrics from analysis for model card
+        self.training_data_profile_path: Optional[str] = None # Path to data profile report
 
         self._setup_mlflow() # Setup MLflow tracking details
 
     # ------------------- Internal Helper Methods -------------------
 
-    # --- NEW: MLflow Run Cleanup Helper ---
+    # --- MLflow Run Cleanup Helper ---
     def _ensure_no_active_mlflow_run(self, step_name: str = "Unknown"):
         """Aggressively ends any unexpected active MLflow runs before starting a step."""
         retry_count = 0
@@ -400,7 +392,7 @@ class AutoMLRunner:
         self.config['task_type'] = self.task_type # Update config state
         return True
 
-    # --- UPDATED: _setup_pycaret (Integrate setup_params_extra) ---
+    # --- _setup_pycaret (Integrate setup_params_extra) ---
     def _setup_pycaret(self) -> bool:
         """(Internal Helper) Sets up PyCaret Environment based on self.data and self.task_type."""
         if self.data is None or self.task_type is None:
@@ -418,7 +410,6 @@ class AutoMLRunner:
 
         ignore_features_list = None
         if isinstance(feature_cols_from_config, list) and feature_cols_from_config:
-            # (Same logic as Code 1 for calculating ignore_features)
             all_columns = set(self.data.columns)
             valid_feature_cols = set(feature_cols_from_config)
             target_set = {target_col}
@@ -449,7 +440,7 @@ class AutoMLRunner:
             "fold": self.config.get("baseline_folds", 5),
             "html": self.config.get("pycaret_setup_html", False),
             "verbose": self.config.get("pycaret_setup_verbose", False),
-            # --- NEW: Add extra setup params from config ---
+            # --- Add extra setup params from config ---
             **self.config.get("setup_params_extra", {})
         }
 
@@ -474,6 +465,7 @@ class AutoMLRunner:
             self.pycaret_module = pyreg
             self.sort_metric = self.config["sort_metric_regression"]
             self.optimize_metric = self.config["optimize_metric_regression"]
+            setup_params["fold_strategy"] = "kfold"
             # Apply regression-specific setup defaults if not overridden
             setup_params.setdefault("normalize", True) # Example default
         else:
@@ -489,7 +481,7 @@ class AutoMLRunner:
             setup_duration = time.time() - start_time
             logger.info(f"PyCaret setup completed in {setup_duration:.2f} seconds.")
 
-            # --- NEW: Extract preprocessor and save train/test data ---
+            # --- Extract preprocessor and save train/test data ---
             self.preprocessor = self.setup_env.pipeline # Get the fitted preprocessor
             self.train_data = self.setup_env.X_train.join(self.setup_env.y_train)
             self.test_data = self.setup_env.X_test.join(self.setup_env.y_test)
@@ -513,7 +505,7 @@ class AutoMLRunner:
                 mlflow.log_param("pycaret_setup_error", f"{type(e).__name__}: {str(e)[:500]}")
             return False
 
-    # --- _compare_models (Keep from Code 1) ---
+    # --- _compare_models ---
     def _compare_models(self) -> bool:
         """(Internal Helper) Compares models using PyCaret."""
         if self.pycaret_module is None or self.sort_metric is None:
@@ -568,7 +560,7 @@ class AutoMLRunner:
                 mlflow.log_param("compare_error", f"{type(e).__name__}: {str(e)[:500]}")
             return False
 
-    # --- UPDATED: _analyze_baseline_models (Use slightly refined logging from Code 1) ---
+    # --- _analyze_baseline_models ---
     def _analyze_baseline_models(self) -> bool:
         """(Internal Helper) Creates, evaluates, logs plots for specified baseline models."""
         if self.pycaret_module is None or self.task_type is None:
@@ -679,13 +671,15 @@ class AutoMLRunner:
         return True # Return True if process ran, even if some models failed
 
 
-    # --- UPDATED: _analyze_tuned_model (Integrate SHAP option from config) ---
+    # --- _analyze_tuned_model (Integrate SHAP option from config) ---
     def _analyze_tuned_model(self) -> bool:
         """(Internal Helper) Generates analysis plots for the tuned model."""
         if self.tuned_best_model is None or self.pycaret_module is None or self.task_type is None:
             logger.error("Tuned model/PyCaret module/task_type not available for analysis.")
             return False
-
+        
+        self.last_feature_importance_plot_path = None
+        self.latest_analysis_metrics = None #
         tuned_model_id = self._get_model_id(self.tuned_best_model) or "tuned_model"
         logger.info(f"--- Analyzing Tuned Model: {tuned_model_id} ({self.task_type}) ---")
         analysis_start_time = time.time()
@@ -695,7 +689,7 @@ class AutoMLRunner:
         try:
             logger.info("Generating analysis plots for tuned model (using hold-out set)...")
 
-            # --- NEW: Evaluate on hold-out first to get metrics ---
+         
             # predict_model implicitly uses hold-out set after tuning
             hold_out_predictions = self.pycaret_module.predict_model(self.tuned_best_model, verbose=False)
             hold_out_metrics_df = self.pycaret_module.pull() # metrics from predict_model evaluation
@@ -719,7 +713,7 @@ class AutoMLRunner:
                 self.latest_analysis_metrics = None
 
 
-            # --- Log Feature Importance (using refined check from Code 1) ---
+            # --- Log Feature Importance ---
             estimator_for_plot = self.tuned_best_model
             can_plot_feature = False
             if hasattr(estimator_for_plot, 'steps'):
@@ -749,7 +743,7 @@ class AutoMLRunner:
                      plot_name=plot_type.replace('_',' ').title(), model_id=tuned_model_id, model_stage="tuned"
                      ): plots_logged_count += 1
 
-            # --- Conditional SHAP plot (If enabled AND possible) ---
+            # --- Conditional SHAP plot ---
             if self.config.get("shap_enabled_if_possible", False):
                 actual_estimator_id = self._get_model_id(self.tuned_best_model)
                 # PyCaret's interpret_model has limited support, check known compatible models
@@ -786,7 +780,7 @@ class AutoMLRunner:
                 mlflow.log_param("tuned_analysis_error", f"{type(e).__name__}: {str(e)[:500]}")
             return False
 
-    # --- UPDATED: _log_plot_artifact (Adopt refined naming/handling from Code 2/Merged) ---
+    # ---_log_plot_artifact ---
     def _log_plot_artifact(self, plot_function: callable, plot_name: str, model_id: str, model_stage: str, **kwargs) -> bool:
         """
         (Internal Helper) Generates, saves LOCALLY to session folder, renames, and logs a plot artifact.
@@ -852,7 +846,6 @@ class AutoMLRunner:
                             final_local_path = original_save_path
                             logger.warning(f"Move failed. Attempting to log original plot artifact: {original_save_path}")
                         else: final_local_path = None
-                # else: The plot was likely already saved to final_local_path (e.g., interpret_model manual save)
 
                 # --- Log the artifact to MLflow ---
                 if final_local_path and os.path.exists(final_local_path):
@@ -864,7 +857,13 @@ class AutoMLRunner:
                             mlflow_logged = True
                         except Exception as log_e:
                             logger.error(f"Could not log plot artifact '{final_local_path}': {log_e}", exc_info=True)
-                    else: logger.warning(f"No active MLflow run. Cannot log plot artifact '{final_artifact_filename}'.")
+                    else: 
+                        logger.warning(f"No active MLflow run. Cannot log plot artifact '{final_artifact_filename}'.")
+
+                    if plot_name == "Feature_Importance" and final_local_path:
+                        self.last_feature_importance_plot_path = final_local_path
+                        logger.info(f"Stored feature importance plot path: {final_local_path}")
+                    
                 elif final_local_path is None:
                      logger.error(f"Plot move failed and original path missing. Cannot log artifact '{final_artifact_filename}'.")
 
@@ -880,7 +879,7 @@ class AutoMLRunner:
 
         return mlflow_logged
 
-    # --- UPDATED: _save_model_artifact (Ensure metadata includes task_type) ---
+    # --- _save_model_artifact (Ensure metadata includes task_type) ---
     def _save_model_artifact(self, model_object: Any, model_stage: str, model_id: str) -> Optional[str]:
         """
         (Internal Helper) Saves model artifact and metadata (incl task_type).
@@ -936,16 +935,6 @@ class AutoMLRunner:
                     mlflow.log_artifact(full_save_path_pkl, artifact_path=artifact_subpath)
                     logger.info(f"Logged model and metadata artifacts to MLflow: {artifact_subpath}/")
 
-                    # --- Standard PyCaret MLflow logging (Optional but Recommended) ---
-                    # If log_experiment=True in setup, PyCaret might have already logged the model.
-                    # If not, or for redundancy, log it using mlflow.pycaret
-                    # try:
-                    #     model_artifact_name = f"{model_stage}_{safe_model_id}_pycaret_model"
-                    #     mlflow.pycaret.log_model(model_object, model_artifact_name)
-                    #     logger.info(f"Logged model via mlflow.pycaret as '{model_artifact_name}'")
-                    # except Exception as pycaret_log_e:
-                    #     logger.warning(f"Failed to log model via mlflow.pycaret: {pycaret_log_e}")
-
                 except Exception as log_e:
                     logger.error(f"Failed to log model/metadata artifacts to MLflow for {model_stage}/{model_id}: {log_e}", exc_info=True)
             else:
@@ -957,7 +946,7 @@ class AutoMLRunner:
             logger.error(f"Failed to save model artifact {model_stage} {model_id}: {e}", exc_info=True)
             return None
 
-    # --- NEW: _load_model_and_metadata (Adopted from Code 2 for prediction/explanation) ---
+    # --- _load_model_and_metadata (Adopted from Code 2 for prediction/explanation) ---
     def _load_model_and_metadata(self, model_base_path: str) -> Tuple[Optional[Any], Optional[str]]:
         """
         Loads model .pkl and associated _meta.json based on base path.
@@ -975,12 +964,6 @@ class AutoMLRunner:
             return None, None
         if not os.path.exists(model_meta_path):
             logger.error(f"Metadata file not found: {model_meta_path}. Cannot determine task type for loading.")
-            # Try loading with current runner's task type as a last resort? Risky.
-            # task_type = self.task_type
-            # if task_type:
-            #     logger.warning(f"Attempting load using current runner task type: {task_type}")
-            # else:
-            #      logger.error("No metadata and no current task type known. Cannot load model.")
             return None, None # Fail if no metadata
 
         # --- Load Metadata to get Task Type ---
@@ -1015,11 +998,8 @@ class AutoMLRunner:
             logger.error(f"Failed loading model {model_base_path}.pkl with {load_module.__name__}: {e_load}", exc_info=True)
             return None, None
 
-
-    # --- _get_model_id (Keep robust version from Code 1) ---
     def _get_model_id(self, model_pipeline: Any) -> Optional[str]:
         """(Internal Helper) Tries to extract the PyCaret model ID from a pipeline object."""
-        # (Implementation from Code 1 is kept as it's reasonably robust)
         if not model_pipeline:
             logger.debug("Cannot get model ID: model_pipeline object is None.")
             return None
@@ -1087,7 +1067,7 @@ class AutoMLRunner:
             return None
 
 
-    # --- NEW: _generate_model_card (Adopted from Code 2) ---
+    # --- _generate_model_card ---
     def _generate_model_card(self, model_name, saved_model_base_path) -> str:
         """Generates a simple markdown model card string."""
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -1121,9 +1101,6 @@ class AutoMLRunner:
 - **MLflow Registered Name:** {reg_name if self.config.get('register_model_in_mlflow') else 'Not Registered'}
 - **MLflow Stage:** {reg_stage if self.config.get('register_model_in_mlflow') else 'N/A'}
 
-## Intended Use
-- *TODO: Describe the intended use case of this model.*
-
 ## Training Data
 - **Source Path:** `{self.config.get('data_file_path', 'N/A')}`
 - **Target Column:** `{self.config.get('target_column', 'N/A')}`
@@ -1132,9 +1109,6 @@ class AutoMLRunner:
 ## Performance Metrics (Hold-Out Set)
 - **Primary Metric ({metric_name}):** {metric_value}
 - *Note: Refer to logged metrics artifacts for detailed CV and hold-out results.*
-
-## Limitations & Bias
-- *TODO: Describe known limitations, potential biases, and ethical considerations.*
 
 ## Configuration Snapshot (Key Params)
 ```json
@@ -1155,7 +1129,7 @@ class AutoMLRunner:
         """
         return card.strip()
 
-    # --- NEW: _register_model (Adopted from Code 2) ---
+    # --- _register_model ---
     def _register_model(self, model_uri: str, registered_model_name: str, description: str = "", stage: Optional[str] = None, tags: Optional[Dict] = None, await_registration_for=0) -> bool:
         """Registers a model in the MLflow Model Registry. Returns True on success."""
         if not mlflow.active_run():
@@ -1223,7 +1197,7 @@ class AutoMLRunner:
                  mlflow.log_param("mlflow_registration_error", f"{type(e).__name__}: {str(e)[:500]}")
             return False
 
-    # --- NEW: _check_data_drift (Adopted from Code 2) ---
+    # --- _check_data_drift (Adopted from Code 2) ---
     def _check_data_drift(self, new_data: pd.DataFrame, report_save_name: Optional[str] = None) -> Optional[Dict]:
         """Checks for data drift between new data and the training data."""
         if Report is None or DataDriftPreset is None:
@@ -1285,10 +1259,6 @@ class AutoMLRunner:
                 if pd.api.types.is_categorical_dtype(current_data[col].dtype):
                     logger.debug(f"Converting cur column '{col}' from category to object for drift.")
                     current_data[col] = current_data[col].astype(object)
-                # Convert objects to strings? Sometimes helps.
-                # if reference_data[col].dtype == 'object': reference_data[col] = reference_data[col].astype(str).fillna("NA")
-                # if current_data[col].dtype == 'object': current_data[col] = current_data[col].astype(str).fillna("NA")
-
 
             # --- Run Evidently Report ---
             logger.info(f"Running Evidently DataDriftPreset on {len(common_cols)} common columns...")
@@ -1393,7 +1363,7 @@ class AutoMLRunner:
                 if self.config.get('optimize_pandas_dtypes', True):
                      full_data = optimize_dtypes(full_data, self.config) # Use helper
 
-                # --- NEW: Data Profiling (Optional) ---
+                # --- Data Profiling ---
                 if self.config.get("run_data_profiling") and ProfileReport:
                     profile_start = time.time()
                     logger.info("Step 1.1a: Generating Data Profile Report...")
@@ -1415,7 +1385,6 @@ class AutoMLRunner:
                 # Apply sampling if configured
                 self._manual_sampling_applied = False
                 if self.config.get("use_sampling_in_setup", False):
-                    # (Sampling logic from Code 1 kept)
                     logger.info("Applying manual sampling before PyCaret setup...")
                     sample_frac = self.config.get("sample_fraction")
                     sample_n = self.config.get("sample_n")
@@ -1541,6 +1510,11 @@ class AutoMLRunner:
         step_name = f"Step2_Tune_{model_id_to_tune}"
         run_name = f"{step_name}_{self.session_id}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
+        self.tuned_best_model = None
+        self.last_tuned_cv_results_df = None
+        self.last_tuned_best_params = None
+        self.last_feature_importance_plot_path = None
+        
         # --- Pre-checks ---
         if not experiment_path or not os.path.exists(experiment_path):
             logger.error(f"{step_name} cannot start. Experiment path '{experiment_path}' invalid/missing.")
@@ -1566,7 +1540,7 @@ class AutoMLRunner:
                 mlflow.log_param("model_id_to_tune", model_id_to_tune)
                 mlflow.set_tags({"session_id": str(self.session_id), "pycaret_version": pycaret.__version__, f"{step_name}_status": "started"})
 
-                # 1. Load Experiment (using explicit task type if available)
+                # 1. Load Experiment
                 logger.info("Step 2.1: Loading Experiment...")
                 load_exp_start = time.time()
                 loaded_env = None
@@ -1606,7 +1580,7 @@ class AutoMLRunner:
                          except Exception as load_err_reg:
                              raise RuntimeError(f"Could not load experiment from {experiment_path}") from load_err_reg
 
-                # --- IMPORTANT: Update self.setup_env AFTER loading ---
+                # --- Update self.setup_env AFTER loading ---
                 self.setup_env = loaded_env
                 logger.info(f"Experiment loaded. Task Type: {self.task_type}")
                 mlflow.log_param("loaded_task_type", self.task_type)
@@ -1666,6 +1640,29 @@ class AutoMLRunner:
                     tuning_duration = time.time() - tune_start
                     logger.info(f"Model tuning completed in {tuning_duration:.2f}s.")
 
+                    self.last_tuned_cv_results_df = self.pycaret_module.pull()
+                    tuned_cv_results_df = self.last_tuned_cv_results_df # Assign to local var for return
+
+                    # Attempt to extract best parameters
+                    try:
+                        final_estimator_step = None
+                        if hasattr(self.tuned_best_model, 'steps'):
+                            final_estimator_step = self.tuned_best_model.steps[-1][1]
+                        else:
+                            final_estimator_step = self.tuned_best_model
+
+                        if final_estimator_step and hasattr(final_estimator_step, 'get_params'):
+                            # Get params specifically from the estimator, not the whole pipeline
+                            self.last_tuned_best_params = final_estimator_step.get_params(deep=False)
+                            best_params_dict = self.last_tuned_best_params # Assign for return
+                            logger.info(f"Extracted best params: {best_params_dict}")
+                            if best_params_dict: mlflow.log_dict(best_params_dict, "tuned_best_params.json")
+                        else:
+                            logger.warning("Could not extract final estimator or params from tuned model.")
+
+                    except Exception as param_ex:
+                        logger.warning(f"Error extracting best params: {param_ex}")
+                    
                     # Log tuning params and CV results
                     mlflow.log_params({f"tune_{k}":v for k,v in tune_params.items() if k != 'custom_grid'}) # Log simple params
                     if "custom_grid" in tune_params: mlflow.log_dict(tune_params["custom_grid"], "tuning_custom_grid.json")
@@ -1693,6 +1690,8 @@ class AutoMLRunner:
                     # _analyze_tuned_model logs duration/plots/metrics internally
                     if not self._analyze_tuned_model():
                         logger.warning("Analysis of tuned model had non-fatal errors.")
+                        
+                    feature_importance_plot_path = self.last_feature_importance_plot_path
                 else:
                     logger.info("Skipping tuned model analysis in Step 2 (config).")
 
@@ -1740,7 +1739,7 @@ class AutoMLRunner:
                  try: mlflow.end_run(status="KILLED")
                  except Exception as end_err: logger.error(f"Failed end unexpected run {current_run_id}: {end_err}")
 
-        return tuned_model_save_path_base # Return absolute base path
+        return tuned_model_save_path_base, best_params_dict, tuned_cv_results_df, feature_importance_plot_path
 
 
     # ========================================================================
@@ -1846,7 +1845,7 @@ class AutoMLRunner:
                              loaded_env = pyreg.load_experiment(experiment_path, data=data_for_load); pycaret_module_for_load=pyreg; task_type_for_load='regression'
                          except Exception as ler: raise RuntimeError(f"Could not load experiment from {experiment_path}") from ler
 
-                # --- IMPORTANT: Update self state AFTER loading ---
+                # --- Update self state AFTER loading ---
                 self.pycaret_module = pycaret_module_for_load
                 self.task_type = task_type_for_load
                 self.setup_env = loaded_env # Ensure setup_env is set for finalize context
@@ -1859,8 +1858,6 @@ class AutoMLRunner:
                 logger.info("Step 3.2: Loading TUNED model pipeline...")
                 load_tuned_start = time.time()
                 # Use the module determined above and the _load_model helper for consistency
-                # We need the object, not just path. Reuse the loading logic from step 2? No, need path here.
-                # Let's use the specific module determined above.
                 tuned_model_pipeline = self.pycaret_module.load_model(tuned_model_path_base, verbose=False)
                 if tuned_model_pipeline is None:
                      raise RuntimeError(f"load_model returned None for tuned model: {tuned_model_path_base}")
@@ -1896,7 +1893,7 @@ class AutoMLRunner:
                 mlflow.log_metric("save_final_model_duration_sec", time.time() - save_final_start)
 
 
-                # --- NEW: Generate Model Card (Optional) ---
+                # --- Generate Model Card ---
                 if self.config.get("generate_model_card", False):
                     logger.info("Step 3.5: Generating Model Card...")
                     try:
@@ -1914,16 +1911,12 @@ class AutoMLRunner:
                          mlflow.log_param("model_card_error", f"{type(card_e).__name__}")
 
 
-                # --- NEW: Register Model in MLflow (Optional) ---
+                # --- Register Model in MLflow ---
                 if self.config.get("register_model_in_mlflow", False):
                     logger.info("Step 3.6: Registering Model in MLflow Registry...")
                     # Need the artifact URI. Construct it based on how _save_model_artifact logs.
-                    # Example URI structure if logged to models/final/
                     final_model_pkl_filename = os.path.basename(f"{final_model_save_path_base}.pkl")
                     model_artifact_uri = f"runs:/{active_mlflow_run_id}/models/final/{final_model_pkl_filename}"
-
-                    # Alternative: If using mlflow.pycaret.log_model, URI is simpler:
-                    # model_artifact_uri = f"runs:/{active_mlflow_run_id}/{stage}_{safe_id}_pycaret_model"
 
                     reg_success = self._register_model(
                         model_uri=model_artifact_uri, # Use the URI of the logged PKL artifact
@@ -2013,7 +2006,7 @@ class AutoMLRunner:
         pred_module = pyclf if loaded_task_type == 'classification' else pyreg
         logger.info(f"Using prediction module: {pred_module.__name__}")
 
-        # --- Optional: Data Drift Check ---
+        # --- Data Drift Check ---
         if self.config.get("enable_drift_check_on_predict", False):
              logger.info("Performing data drift check before prediction...")
              # Ensure self.train_data is available (should be set in step 1)
@@ -2022,7 +2015,6 @@ class AutoMLRunner:
                  logger.info(f"Drift Check Results: Detected={drift_results.get('drift_detected')}, DriftedFeatures={drift_results.get('num_drifted_features')}")
                  if drift_results.get("drift_detected"):
                      logger.warning("<<< POTENTIAL DATA DRIFT DETECTED! Prediction results may be unreliable. >>>")
-                     # Add logic here: halt, alert, use alternative model?
                      if self.config.get("halt_prediction_on_drift", False): # Add config option
                          logger.error("Halting prediction due to detected data drift.")
                          return None
@@ -2081,7 +2073,7 @@ class AutoMLRunner:
 
 
     # ========================================================================
-    # --- NEW: SHAP Explanation Method ---
+    # --- SHAP Explanation Method ---
     # ========================================================================
     def explain_prediction(self, model_base_path: str, data_instance: pd.DataFrame) -> Optional[Dict]:
         """
@@ -2157,7 +2149,7 @@ class AutoMLRunner:
                 # Transform data
                 transformed_instance_array = preprocessor_pipeline.transform(data_instance)
 
-                # Try to get feature names after transformation (can be tricky)
+                # Try to get feature names after transformation
                 feature_names_out = None
                 try:
                     # Use get_feature_names_out if available (Scikit-learn >= 1.0)
@@ -2203,20 +2195,6 @@ class AutoMLRunner:
 
         try:
             logger.info(f"Initializing SHAP explainer for: {type(final_estimator).__name__}")
-
-            # Use background data? Recommended for some explainers like KernelExplainer.
-            # Requires loading and transforming training data. Simpler approach first:
-            # background_data = None
-            # if self.train_data is not None and preprocessor_pipeline:
-            #     try:
-            #         transformed_train = preprocessor_pipeline.transform(self.train_data.drop(columns=[self.config['target_column']]))
-            #         background_data = shap.sample(transformed_train, 100) # Sample 100 points
-            #     except Exception as bg_err:
-            #         logger.warning(f"Could not create background data for SHAP: {bg_err}")
-
-            # shap.Explainer often auto-detects best method (Tree, Linear, Kernel)
-            # Pass the estimator and potentially the background data
-            # explainer = shap.Explainer(final_estimator, background_data) # With background
             explainer = shap.Explainer(final_estimator, transformed_instance_df) # Without background data (simpler)
 
             logger.info(f"Calculating SHAP values using explainer: {type(explainer)}")
@@ -2235,7 +2213,6 @@ class AutoMLRunner:
             instance_shap_values_array = shap_values.values[0] # Values for the first (only) instance
             if len(instance_shap_values_array.shape) > 1:
                  # Multi-class: shap_values[0].shape = (n_features, n_classes)
-                 # Need to decide which class to explain - e.g., predicted class or sum?
                  # For simplicity, explain the first class (index 0)
                  instance_shap_values_array = instance_shap_values_array[:, 0]
                  logger.warning("SHAP values are multi-output (multi-class); showing explanation for class 0.")
@@ -2261,180 +2238,3 @@ class AutoMLRunner:
         except Exception as e:
             logger.error(f"Failed during SHAP explanation calculation: {e}", exc_info=True)
             return None
-
-
-# # --- Example Usage (Illustrative - Adapted for Merged Code) ---
-# if __name__ == "__main__":
-
-#     logger.info("="*50)
-#     logger.info("--- Starting Merged AutoML Runner Example ---")
-#     logger.info("="*50)
-
-#     config_file_to_use = 'config.yaml' # Assumes updated config.yaml is in CWD
-#     runner = None
-#     exp_path = None
-#     tuned_model_path_base = None
-#     final_model_path_base = None
-#     detected_task = None
-#     compare_results_df = None
-#     config = {}
-
-#     try:
-#         # 1. Load Configuration
-#         logger.info(f"Loading configuration from: {config_file_to_use}")
-#         config = load_config(config_file_to_use)
-
-#         # Pre-run Checks
-#         if not os.path.exists(config['data_file_path']):
-#              raise FileNotFoundError(f"Data file not found: {config['data_file_path']}")
-#         logger.info(f"Config loaded: Session ID={config.get('session_id')}, Output Dir={config.get('output_base_dir')}")
-#         logger.info(f"Optional Features: Profiling={config.get('run_data_profiling')}, DriftCheck={config.get('enable_drift_check_on_predict')}, ModelCard={config.get('generate_model_card')}, Registry={config.get('register_model_in_mlflow')}, SHAP={config.get('enable_prediction_explanation')}")
-
-#         # Create output base directory if needed
-#         os.makedirs(config['output_base_dir'], exist_ok=True)
-
-#         # 2. Initialize Runner
-#         runner = AutoMLRunner(config=config)
-
-#     except Exception as init_e:
-#         logger.critical(f"Failed to load config or initialize runner: {init_e}", exc_info=True)
-#         runner = None
-
-#     # --- Step 1 ---
-#     if runner:
-#         try:
-#             logger.info("\n--- Running Step 1: Setup and Compare ---")
-#             exp_path, compare_results_df, detected_task = runner.step1_setup_and_compare()
-#             if exp_path and detected_task:
-#                 logger.info(f"Step 1 successful. Experiment: {exp_path}, Task: {detected_task}")
-#                 # Update config in memory for subsequent steps (simulates service layer)
-#                 config['task_type'] = detected_task
-#                 runner.config['task_type'] = detected_task # Update runner's config too
-#                 if compare_results_df is not None and not compare_results_df.empty:
-#                     logger.info("\nComparison Results (Top 5):")
-#                     logger.info(f"\n{compare_results_df.head().to_markdown()}")
-#                 else:
-#                      logger.warning("Step 1 completed, but no comparison results.")
-#             else:
-#                 logger.error("Step 1 failed.")
-#                 runner = None # Stop subsequent steps
-#         except Exception as step1_e:
-#             logger.error(f"Step 1 execution failed critically: {step1_e}", exc_info=True)
-#             runner = None
-
-#     # --- Step 2 ---
-#     model_to_tune = None
-#     if runner and exp_path and detected_task:
-#         # Decide which model to tune (e.g., top from comparison or specified in config)
-#         if compare_results_df is not None and not compare_results_df.empty:
-#             model_to_tune = config.get("model_to_tune_in_step2") # Check config first
-#             if not model_to_tune:
-#                  model_to_tune = compare_results_df.index[0] # Default to top model
-#                  logger.info(f"No 'model_to_tune_in_step2' in config. Using top model from comparison: {model_to_tune}")
-#             else:
-#                  logger.info(f"Using model specified in config for tuning: {model_to_tune}")
-#         elif config.get("model_to_tune_in_step2"):
-#              model_to_tune = config.get("model_to_tune_in_step2")
-#              logger.warning("Comparison results empty/missing, but found 'model_to_tune_in_step2' in config. Proceeding.")
-#         else:
-#             logger.warning("No comparison results and no specific model configured for tuning. Skipping Step 2.")
-
-
-#         if model_to_tune:
-#              try:
-#                 logger.info(f"\n--- Running Step 2: Tune and Analyze ({model_to_tune}) ---")
-#                 # Re-initialize runner with updated config (task_type) if needed (or ensure runner.config is updated)
-#                 # Runner instance should persist state, so just call the method
-#                 tuned_model_path_base = runner.step2_tune_and_analyze_model(
-#                     experiment_path=exp_path,
-#                     model_id_to_tune=model_to_tune
-#                 )
-#                 if tuned_model_path_base:
-#                     logger.info(f"Step 2 successful. Tuned model base path: {tuned_model_path_base}")
-#                 else:
-#                     logger.error("Step 2 failed.")
-#                     runner = None # Stop subsequent steps
-#              except Exception as step2_e:
-#                 logger.error(f"Step 2 execution failed critically: {step2_e}", exc_info=True)
-#                 runner = None
-#         else:
-#              logger.info("Skipping Step 2 as no model was selected for tuning.")
-
-
-#     # --- Step 3 ---
-#     if runner and exp_path and tuned_model_path_base and detected_task:
-#         try:
-#             logger.info("\n--- Running Step 3: Finalize and Save ---")
-#             # Runner instance should persist state, call method directly
-#             final_model_path_base = runner.step3_finalize_and_save_model(
-#                 experiment_path=exp_path,
-#                 tuned_model_path_base=tuned_model_path_base
-#             )
-#             if final_model_path_base:
-#                 logger.info(f"Step 3 successful. Final model base path: {final_model_path_base}")
-#             else:
-#                 logger.error("Step 3 failed.")
-#                 runner = None # Stop prediction example
-#         except Exception as step3_e:
-#             logger.error(f"Step 3 execution failed critically: {step3_e}", exc_info=True)
-#             runner = None
-#     elif runner:
-#          logger.warning("Skipping Step 3 because Step 1 or 2 failed or was skipped.")
-
-
-#     # --- Prediction & Explanation Example ---
-#     if runner and final_model_path_base:
-#         try:
-#             logger.info("\n--- Running Prediction Example ---")
-#             # Create dummy prediction data (first few rows of original data without target)
-#             orig_data_pred = pd.read_csv(config['data_file_path'])
-#             target_col = config.get("target_column")
-#             predict_example_df = None
-#             if target_col and target_col in orig_data_pred.columns:
-#                  predict_example_df = orig_data_pred.drop(columns=[target_col]).head(3)
-#             else:
-#                  predict_example_df = orig_data_pred.head(3) # Use first rows if target missing
-
-#             if predict_example_df is None or predict_example_df.empty:
-#                  raise ValueError("Failed to create example prediction data.")
-
-#             logger.info(f"Example Data for Prediction (shape: {predict_example_df.shape}):")
-#             logger.info(f"\n{predict_example_df.to_markdown(index=False)}")
-
-#             # Predict using the final model path from Step 3
-#             predictions = runner.predict_on_new_data(
-#                 new_data=predict_example_df,
-#                 model_base_path=final_model_path_base # Use the final model path
-#             )
-
-#             if predictions is not None:
-#                 logger.info("\nPredictions:")
-#                 logger.info(f"\n{predictions.to_markdown(index=False)}")
-
-#                 # --- NEW: Explain Prediction (Optional) ---
-#                 if config.get("enable_prediction_explanation", False):
-#                     logger.info("\n--- Running Prediction Explanation Example (First Row) ---")
-#                     explanation = runner.explain_prediction(
-#                          model_base_path=final_model_path_base,
-#                          data_instance=predict_example_df.iloc[[0]] # Explain the first row only
-#                     )
-#                     if explanation:
-#                           logger.info(f"Explanation Base Value: {explanation['base_value']:.4f}")
-#                           # Print SHAP values for features contributing most
-#                           shap_series = pd.Series(explanation['shap_values'], index=explanation['feature_names']).sort_values(key=abs, ascending=False)
-#                           logger.info("Top 5 Feature Contributions (SHAP values):")
-#                           logger.info(f"\n{shap_series.head().to_markdown()}")
-#                     else:
-#                           logger.warning("Could not generate prediction explanation.")
-#             else:
-#                 logger.error("Prediction example failed.")
-
-#         except Exception as pred_e:
-#             logger.error(f"Prediction/Explanation example execution failed: {pred_e}", exc_info=True)
-#     elif runner:
-#         logger.warning("Skipping Prediction/Explanation example because Step 3 failed or was skipped.")
-
-
-#     logger.info("="*50)
-#     logger.info("--- Merged AutoML Runner Example Finished ---")
-#     logger.info("="*50)

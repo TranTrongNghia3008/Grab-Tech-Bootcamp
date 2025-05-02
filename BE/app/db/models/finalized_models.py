@@ -8,7 +8,7 @@ from app.db.base import Base
 class FinalizedModel(Base):
     __tablename__ = "finalized_models"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(Integer, primary_key=True, index=True)
     session_id = Column(
         Integer,
         ForeignKey("automl_sessions.id", ondelete="CASCADE"), # Points to AutoMLSession PK

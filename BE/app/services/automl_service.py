@@ -1,12 +1,12 @@
-# backend/app/services/automl_service.py (Synchronous - Step 1 - New DB Design)
 import os
 import yaml
 import datetime # Needed for timestamp updates
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session # Sync Session
 from pydantic import BaseModel
 from typing import Dict, Any, Callable, Tuple, Optional
 import pandas as pd
+import io
 
 # CRUD Imports
 from app.crud.automl_sessions import crud_automl_session # Use updated session CRUD
@@ -185,8 +185,6 @@ def run_step1_setup_and_compare(db: Session, params: schemas.AutoMLSessionStartS
             "error": step1_error, # Pass error message to potentially update session error field
             "task_type": detected_task, # Update the main task_type column
             "step1_experiment_path": exp_path,
-            # TODO: Extract mlflow run ID if runner makes it accessible
-            # "step1_mlflow_run_id": runner.mlflow_run_id # Assuming runner stores it
         }
         # Remove None values from kwargs before passing to CRUD
         update_kwargs = {k: v for k,v in update_kwargs.items() if v is not None}
@@ -234,7 +232,7 @@ def run_step1_setup_and_compare(db: Session, params: schemas.AutoMLSessionStartS
     return schemas.AutoMLSessionStep1Response(**response_data)
 
 
-# --- NEW Service Function for Step 2 ---
+# --- Service Function for Step 2 ---
 def run_step2_tune_and_analyze(db: Session, session_id: int, params: schemas.AutoMLSessionStartStep2Request) -> schemas.AutoMLSessionStep2Result:
     """
     Orchestrates the synchronous execution of AutoML Step 2:
@@ -303,9 +301,11 @@ def run_step2_tune_and_analyze(db: Session, session_id: int, params: schemas.Aut
 
     # 4, 5, 6. Instantiate Runner, Update Status, Run Step 2 (Blocking)
     tuned_model_path_base = None
+    best_params_dict = None
+    cv_results_df = None
+    feature_importance_plot_path = None
     step2_error = None
     final_step2_status = "failed" # Default
-    step2_results_dict = {} # Store raw results from runner method
 
     try:
         # Update status to running
@@ -316,8 +316,7 @@ def run_step2_tune_and_analyze(db: Session, session_id: int, params: schemas.Aut
 
         # --- BLOCKING CALL to Step 2 method ---
         # Assuming step2_tune_and_analyze_model exists in runner and takes experiment_path and model_id
-        # NOTE: The placeholder version might need adjustment. This assumes it returns the base path.
-        tuned_model_path_base = runner.step2_tune_and_analyze_model(
+        tuned_model_path_base, best_params_dict, cv_results_df, feature_importance_plot_path = runner.step2_tune_and_analyze_model(
              experiment_path=db_session.step1_experiment_path,
              model_id_to_tune=params.model_id_to_tune
         )
@@ -326,12 +325,6 @@ def run_step2_tune_and_analyze(db: Session, session_id: int, params: schemas.Aut
         print(f"AutoML Step 2 execution finished for session {session_id}.")
         if tuned_model_path_base:
             final_step2_status = "completed"
-            # TODO: Ideally, the runner's step2 method should return more results
-            # like best_params, cv_metrics etc. For now, we only have the path.
-            step2_results_dict = {
-                "best_params": {"placeholder": "fetch from runner/mlflow"},
-                "cv_metrics": {"placeholder": "fetch from runner/mlflow"}
-            }
         else:
             step2_error = "AutoML step2 finished but indicated failure (tuned model path is None)."
             print(step2_error)
@@ -343,13 +336,34 @@ def run_step2_tune_and_analyze(db: Session, session_id: int, params: schemas.Aut
 
     # 7. Update Session DB Record
     try:
+        
+        step2_results_dict = {}
+        cv_metrics_table_schema = None # For storing the structured table
+
+        if final_step2_status == "completed":
+             step2_results_dict["best_params"] = best_params_dict
+             step2_results_dict["feature_importance_plot_path"] = feature_importance_plot_path
+             # Convert CV results DataFrame to schema structure
+             if isinstance(cv_results_df, pd.DataFrame) and not cv_results_df.empty:
+                  try:
+                      df_for_schema = cv_results_df.reset_index() # Ensure index becomes a column
+                      # Handle potential NaNs or incompatible types for JSON
+                      data_list = df_for_schema.astype(object).where(pd.notnull(df_for_schema), None).values.tolist()
+                      cv_metrics_table_schema = DataFrameStructure(
+                          columns=df_for_schema.columns.tolist(),
+                          data=data_list
+                      )
+                      # Store the schema-compatible dict in the results JSON
+                      step2_results_dict["cv_metrics_table"] = cv_metrics_table_schema.dict()
+                  except Exception as df_convert_e:
+                      print(f"Warning: Could not convert CV results DataFrame to storable dict: {df_convert_e}")
+                      step2_results_dict["cv_metrics_table_error"] = str(df_convert_e)
+        
         update_kwargs = {
             "results": step2_results_dict, # Store placeholder or real results
             "error": step2_error if final_step2_status == 'failed' else None,
             "step2_tuned_model_path_base": tuned_model_path_base,
             "step2_model_id_tuned": params.model_id_to_tune # Record which model was tuned this run
-            # TODO: Extract step 2 mlflow run ID if available
-            # "step2_mlflow_run_id": runner.step2_mlflow_run_id # Example
         }
         update_kwargs = {k: v for k,v in update_kwargs.items()} # No need to filter None here? CRUD handles update
 
@@ -373,15 +387,22 @@ def run_step2_tune_and_analyze(db: Session, session_id: int, params: schemas.Aut
         raise HTTPException(status_code=500, detail=step2_error or "AutoML Step 2 failed during execution.")
 
     # Construct the success response object from step 2 results
-    # Map from the step2_results_dict saved in DB if needed
     response_data = {
-        "tuned_model_id": step2_results_dict.get("tuned_model_id", params.model_id_to_tune), # Assuming runner doesn't return ID
-        "best_params": step2_results_dict.get("best_params"),
-        "cv_metrics": step2_results_dict.get("cv_metrics"),
+        "tuned_model_id": params.model_id_to_tune, # Use the ID provided in the request
         "tuned_model_save_path_base": tuned_model_path_base,
+        "best_params": best_params_dict,
+        "cv_metrics_table": cv_metrics_table_schema, # Use the schema object created earlier
+        "feature_importance_plot_path": feature_importance_plot_path,
     }
 
-    return schemas.AutoMLSessionStep2Result(**response_data)
+    # Validate response data against the schema before returning
+    try:
+        validated_response = AutoMLSessionStep2Result(**response_data)
+        return validated_response
+    except Exception as validation_e:
+        print(f"Error creating response for Step 2: {validation_e}")
+        # Fallback or raise internal error
+        raise HTTPException(status_code=500, detail="Failed to format Step 2 response.")
 
 def run_step3_finalize_and_save(db: Session, session_id: int, params: schemas.AutoMLSessionStartStep3Request) -> schemas.AutoMLSessionStep3Result:
     """
@@ -490,23 +511,42 @@ def run_step3_finalize_and_save(db: Session, session_id: int, params: schemas.Au
 
         print(f"AutoML Step 3 execution finished for session {session_id}.")
         if final_model_path_base:
-            final_step3_status = "completed"
-            # Prepare data to save in FinalizedModel table
-            # Use override name if provided, otherwise extract/default
+            # Prepare data for FinalizedModel table
             model_name_to_save = params.model_name_override or os.path.basename(final_model_path_base).split('_')[1] or f"final_model_{session_id}"
+            saved_model_path = f"{final_model_path_base}.pkl"
+            saved_metadata_path = f"{final_model_path_base}_meta.json"
+            current_timestamp = datetime.datetime.utcnow() # Get current time
 
-            # --- 7. Create FinalizedModel record in DB ---
-            fm_create_data = FinalizedModelCreateInternal(
-                 session_id=session_id,
-                 model_name=model_name_to_save,
-                 saved_model_path=f"{final_model_path_base}.pkl",
-                 saved_metadata_path=f"{final_model_path_base}_meta.json",
-                 # TODO: Extract run ID / URI if runner makes them available
-                 # mlflow_run_id=runner.step3_mlflow_run_id,
-                 # model_uri_for_registry=runner.step3_model_uri
-            )
-            finalized_model_obj = finalized_crud.create(db, obj_in=fm_create_data)
-            print(f"Created FinalizedModel record ID: {finalized_model_obj.id}")
+            # --- 7. Check for existing FinalizedModel, Update or Create (UPSERT) ---
+            existing_fm = db.query(finalized_crud.model).filter(finalized_crud.model.session_id == session_id).first()
+
+            if existing_fm:
+                print(f"Found existing FinalizedModel record (ID: {existing_fm.id}) for session {session_id}. Updating.")
+                update_data = {
+                    "model_name": model_name_to_save,
+                    "saved_model_path": saved_model_path,
+                    "saved_metadata_path": saved_metadata_path,
+                    "created_at": current_timestamp, # Update timestamp to reflect new finalization
+                    # Add other fields if needed (e.g., mlflow_run_id if available)
+                    # "mlflow_run_id": runner.step3_mlflow_run_id,
+                }
+                finalized_model_obj = finalized_crud.update(db, db_obj=existing_fm, obj_in=update_data)
+                print(f"Updated FinalizedModel record ID: {finalized_model_obj.id}")
+
+            else:
+                print(f"No existing FinalizedModel record for session {session_id}. Creating new.")
+                fm_create_data = FinalizedModelCreateInternal( # Use internal schema for creation
+                     session_id=session_id,
+                     model_name=model_name_to_save,
+                     saved_model_path=saved_model_path,
+                     saved_metadata_path=saved_metadata_path,
+                     created_at=current_timestamp, # Set creation time
+                )
+                finalized_model_obj = finalized_crud.create(db, obj_in=fm_create_data)
+                print(f"Created new FinalizedModel record ID: {finalized_model_obj.id}")
+
+            # --- Mark step as completed AFTER successful upsert ---
+            final_step3_status = "completed"
             step3_results_dict = {
                 "finalized_model_db_id": finalized_model_obj.id,
                 "saved_model_path": finalized_model_obj.saved_model_path,
@@ -521,17 +561,17 @@ def run_step3_finalize_and_save(db: Session, session_id: int, params: schemas.Au
         final_step3_status = "failed"
         step3_error = f"Error during AutoMLRunner Step 3 execution: {type(runner_e).__name__}: {runner_e}"
         print(f"{step3_error}")
+        db.rollback()
 
-    # 8. Update Session DB Record
+    # 8. Update Session DB Record (This happens AFTER the main try block)
     try:
         update_kwargs = {
-            "results": step3_results_dict, # Store final model details
+            "results": step3_results_dict,
             "error": step3_error if final_step3_status == 'failed' else None,
-            "step3_final_model_id": finalized_model_obj.id if finalized_model_obj else None, # Link to created record
-            # TODO: Extract step 3 mlflow run ID if available
-            # "step3_mlflow_run_id": runner.step3_mlflow_run_id # Example
+            # Link to the created/updated finalized model ID
+            "step3_final_model_id": finalized_model_obj.id if finalized_model_obj and final_step3_status == 'completed' else None,
         }
-        update_kwargs = {k: v for k, v in update_kwargs.items()} # Filter None? Not needed for atomic update
+        update_kwargs = {k: v for k, v in update_kwargs.items()}
 
         db_session = crud_automl_session.update_step_status(
             db,
@@ -542,10 +582,19 @@ def run_step3_finalize_and_save(db: Session, session_id: int, params: schemas.Au
         )
         if not db_session: raise RuntimeError("Failed to update session status after step 3 execution.")
         print(f"Updated session {session_id} step3 status to {final_step3_status}.")
+        # Commit changes if everything up to this point was successful
+        if final_step3_status == 'completed':
+            db.commit() # Explicitly commit successful upsert and session update
 
     except Exception as db_update_e:
+        # If updating the session status fails AFTER the upsert might have succeeded
         print(f"ERROR: Failed to update final step 3 status/results in DB for {session_id}: {db_update_e}")
-        raise HTTPException(status_code=500, detail="AutoML step 3 finished but failed to update session status in database.")
+        db.rollback() # Rollback any changes from this transaction block
+        # Raise the original error if it exists, otherwise raise the DB update error
+        if step3_error:
+             raise HTTPException(status_code=500, detail=step3_error)
+        else:
+             raise HTTPException(status_code=500, detail="AutoML step 3 finished but failed to update session status in database.")
 
     # 9. Prepare and Return Response
     if final_step3_status == "failed":
@@ -558,4 +607,108 @@ def run_step3_finalize_and_save(db: Session, session_id: int, params: schemas.Au
         "saved_metadata_path": finalized_model_obj.saved_metadata_path if finalized_model_obj else None,
     }
 
-    return schemas.AutoMLSessionStep3Result(**response_data)
+    try:
+        validated_response = schemas.AutoMLSessionStep3Result(**response_data)
+        return validated_response
+    except Exception as validation_e:
+        print(f"Error creating response for Step 3: {validation_e}")
+        raise HTTPException(status_code=500, detail="Failed to format Step 3 response.")
+
+
+async def run_prediction_from_csv(db: Session, finalized_model_id: int, uploaded_file: UploadFile) -> pd.DataFrame:
+    """
+    Handles prediction using a finalized AutoML model on data from an uploaded CSV file.
+    Does NOT store the uploaded data or results in the database.
+
+    1. Fetches the FinalizedModel record.
+    2. Fetches the associated AutoMLSession record for configuration context.
+    3. Fetches the original dataset record for path info.
+    4. Loads base AutoML config and merges with session config.
+    5. Reads the uploaded CSV into a Pandas DataFrame.
+    6. Instantiates AutoMLRunner.
+    7. Calls runner's predict_on_new_data method (BLOCKING).
+    8. Returns the resulting DataFrame with predictions.
+    """
+    finalized_crud = crud_finalized_model
+    session_crud = crud_automl_session
+    dataset_crud = crud_dataset
+
+    # 1. Fetch Finalized Model 
+    db_finalized_model = finalized_crud.get(db, id=finalized_model_id)
+    if not db_finalized_model:
+        raise HTTPException(status_code=404, detail=f"Finalized Model with ID {finalized_model_id} not found.")
+    if not db_finalized_model.saved_model_path or not os.path.exists(db_finalized_model.saved_model_path):
+        raise HTTPException(status_code=404, detail=f"Model artifact file not found for Finalized Model ID {finalized_model_id}.")
+
+    # 2. Fetch Associated AutoML Session
+    db_session = session_crud.get(db, id=db_finalized_model.session_id)
+    if not db_session:
+        raise HTTPException(status_code=404, detail=f"Associated AutoML Session {db_finalized_model.session_id} not found for model {finalized_model_id}.")
+
+    # 3. Fetch Original Dataset
+    db_dataset = dataset_crud.get(db, id=db_session.dataset_id)
+    if not db_dataset or not db_dataset.file_path:
+        raise HTTPException(status_code=404, detail=f"Original dataset path not found for session {db_session.id}.")
+
+    # 4. Load and Merge Config
+    try:
+        base_config = load_config()
+        runner_config = base_config.copy()
+        if db_session.config and isinstance(db_session.config, dict):
+            runner_config.update(db_session.config)
+        runner_config['session_id'] = db_session.id
+        runner_config['data_file_path'] = db_dataset.file_path
+        runner_config['target_column'] = db_session.target_column
+        if hasattr(settings, 'AUTOML_OUTPUT_BASE_DIR') and settings.AUTOML_OUTPUT_BASE_DIR: runner_config['output_base_dir'] = settings.AUTOML_OUTPUT_BASE_DIR
+        if hasattr(settings, 'MLFLOW_TRACKING_URI') and settings.MLFLOW_TRACKING_URI: runner_config['mlflow_tracking_uri'] = settings.MLFLOW_TRACKING_URI
+    except Exception as cfg_e:
+        raise HTTPException(status_code=500, detail=f"Failed to load/merge config for prediction: {cfg_e}")
+
+    # 5. Read Uploaded CSV into DataFrame
+    try:
+        # Read content from the UploadFile's file-like object
+        content = await uploaded_file.read()
+        # Use io.BytesIO to treat the bytes content as a file for pandas
+        file_stream = io.BytesIO(content)
+        predict_df = pd.read_csv(file_stream)
+        # Reset the stream position just in case (good practice)
+        file_stream.seek(0)
+        if predict_df.empty:
+            raise ValueError("Uploaded CSV data is empty.")
+        print(f"Successfully read uploaded CSV. Shape: {predict_df.shape}")
+    except pd.errors.EmptyDataError:
+         raise HTTPException(status_code=400, detail="The uploaded CSV file is empty.")
+    except pd.errors.ParserError as pd_parse_e:
+         raise HTTPException(status_code=400, detail=f"Invalid CSV format: {pd_parse_e}")
+    except Exception as read_e:
+        print(f"Error reading uploaded CSV: {read_e}")
+        raise HTTPException(status_code=400, detail=f"Could not read or parse the uploaded CSV file. Error: {read_e}")
+    finally:
+        # Important: Close the file object associated with UploadFile
+        await uploaded_file.close()
+
+
+    # 6. & 7. Instantiate Runner and Predict (Blocking)
+    prediction_result_df = None
+    try:
+        runner = AutoMLRunner(config=runner_config)
+        model_base_path = db_finalized_model.saved_model_path.replace('.pkl', '')
+
+        print(f"Running prediction via CSV upload using model: {model_base_path}")
+
+        # --- BLOCKING CALL to predict method ---
+        prediction_result_df = runner.predict_on_new_data(
+            new_data=predict_df,
+            model_base_path=model_base_path
+        )
+        # --------------------------------------
+
+        if prediction_result_df is None:
+            raise RuntimeError("AutoMLRunner prediction failed (returned None).")
+
+    except Exception as runner_e:
+        print(f"Error during prediction execution: {runner_e}")
+        raise HTTPException(status_code=500, detail=f"Prediction failed during processing: {runner_e}")
+
+    # 8. Return the DataFrame with predictions
+    return prediction_result_df

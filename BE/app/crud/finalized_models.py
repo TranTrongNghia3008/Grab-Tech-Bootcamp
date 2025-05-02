@@ -1,5 +1,3 @@
-# backend/app/crud/crud_finalized_model.py
-from uuid import UUID # Keep if ID is UUID
 from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -24,7 +22,7 @@ FinalizedModelUpdateSchema = Dict[str, Any]
 
 class CRUDFinalizedModel(CRUDBase[FinalizedModel, FinalizedModelCreateInternal, FinalizedModelUpdateSchema]):
      def update_registration(
-         self, db: Session, *, model_id: UUID, mlflow_version: int, model_uri: Optional[str] = None
+         self, db: Session, *, model_id: int, mlflow_version: int, model_uri: Optional[str] = None
      ) -> FinalizedModel | None:
          # Logic remains similar, update atomic handles column check
          values = {"mlflow_registered_version": mlflow_version}

@@ -12,6 +12,11 @@ def save_dataframe_as_csv(df: pd.DataFrame, filename: str) -> str:
     df.to_csv(path, index=False)
     return str(path)
 
+def get_file_path(filename: str) -> str:
+    STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+    path = STORAGE_DIR / filename
+    return str(path)
+
 # Load CSV from DS
 def load_csv_as_dataframe(file_path: str) -> pd.DataFrame:
     return pd.read_csv(file_path)

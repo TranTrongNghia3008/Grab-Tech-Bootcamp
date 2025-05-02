@@ -47,10 +47,11 @@ class AutoMLSessionStartStep2Request(BaseModel):
     # tune_config_overrides: Optional[Dict[str, Any]] = None
 
 class AutoMLSessionStep2Result(BaseModel):
-    tuned_model_id: Optional[str] # ID assigned by PyCaret/runner
-    best_params: Optional[Dict[str, Any]]
-    cv_metrics: Optional[Dict[str, Any]]
-    tuned_model_save_path_base: Optional[str]
+    tuned_model_id: str # The ID of the model that was tuned (e.g., 'rf')
+    tuned_model_save_path_base: str # Base path where the tuned model was saved
+    best_params: Optional[Dict[str, Any]] = None # Dictionary of best hyperparameters found
+    cv_metrics_table: Optional[DataFrameStructure] = None # CV metrics as a table structure
+    feature_importance_plot_path: Optional[str] = None # Path to the saved feature importance plot
 
 # --- Step 3 Specific Schemas ---
 class AutoMLSessionStartStep3Request(BaseModel):
@@ -60,7 +61,7 @@ class AutoMLSessionStartStep3Request(BaseModel):
     model_name_override: Optional[str] = None # Optional name for final model
 
 class AutoMLSessionStep3Result(BaseModel):
-    finalized_model_db_id: Optional[UUID4] # ID from FinalizedModel table
+    finalized_model_db_id: Optional[int] # ID from FinalizedModel table
     saved_model_path: Optional[str]
     saved_metadata_path: Optional[str]
     # Add other finalization results if any

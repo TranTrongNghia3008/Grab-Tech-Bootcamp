@@ -1,29 +1,28 @@
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from typing import Optional, Dict, Any
+
+# --- Import Model and Base CRUD ---
 from app.db.models.cleaning_jobs import CleaningJob
+from app.crud.base import CRUDBase
 
-def get_cleaning_job_by_id(db: Session, job_id: int) -> CleaningJob | None:
-    return db.query(CleaningJob).get(job_id)
+# --- Schemas ---
+# Define data structures for creating and updating CleaningJob records.
 
-def create_cleaning_job(db: Session, dataset_id: int, config: dict) -> CleaningJob:
-    job = CleaningJob(dataset_id=dataset_id, config=config)
-    db.add(job)
-    db.commit()
-    db.refresh(job)
-    return job
+class CleaningJobCreateSchema(BaseModel):
+    dataset_id: int
+    config: Dict[str, Any] = {} # Configuration for the cleaning job
+    status: str = "pending" # Default status on creation
 
-def update_cleaning_job(db: Session, job: CleaningJob, **kwargs) -> CleaningJob:
-    for k, v in kwargs.items():
-        setattr(job, k, v)
-    
-    db.commit()
-    db.refresh(job)
-    return job
+class CleaningJobUpdateSchema(BaseModel):
+    dataset_id: Optional[int] = None
+    config: Optional[Dict[str, Any]] = None
+    status: Optional[str] = None
+    results: Optional[Dict[str, Any]] = None # Results populated after completion
 
-def delete_cleaning_job(db: Session, job_id: int) -> bool:
-    job = get_cleaning_job_by_id(db, job_id)
-    if not job:
-        return False
+# --- CRUD Class using CRUDBase ---
+class CRUDCleaningJob(CRUDBase[CleaningJob, CleaningJobCreateSchema, CleaningJobUpdateSchema]):
+    pass
 
-    db.delete(job)
-    db.commit()
-    return True
+# --- Instantiate the CRUD class ---
+crud_cleaning_job = CRUDCleaningJob(CleaningJob)

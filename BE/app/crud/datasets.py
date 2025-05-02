@@ -1,37 +1,23 @@
-from sqlalchemy.orm import Session 
-from app.db.models.datasets import Dataset
-from typing import Optional
-from app.crud.base import CRUDBase
+from sqlalchemy.orm import Session
+from typing import Optional, List
 from pydantic import BaseModel
 
-def create_dataset(db: Session, connection_id: int, file_path: str) -> Dataset:
-    ds = Dataset(connection_id=connection_id, file_path=file_path)
-    db.add(ds)
-    db.commit()
-    db.refresh(ds)
-    return ds
+from app.db.models.datasets import Dataset
+from app.crud.base import CRUDBase
 
-def get_dataset_by_id(db: Session, dataset_id: int) -> Dataset | None:
-    return db.query(Dataset).get(dataset_id)
-
-
+# --- Schemas ---
+# Define data structures for creating and updating Dataset records via the API/CRUD operations.
 class DatasetCreateSchema(BaseModel):
-    file_path: str # Example required field
+    file_path: str = ""
     connection_id: Optional[int] = None
 
 class DatasetUpdateSchema(BaseModel):
     file_path: Optional[str] = None
     connection_id: Optional[int] = None
 
-
-# --- Using CRUDBase ---
+# --- CRUD Class using CRUDBase ---
 class CRUDDataset(CRUDBase[Dataset, DatasetCreateSchema, DatasetUpdateSchema]):
-    def get(self, db: Session, id: int) -> Optional[Dataset]:
-        """
-        Retrieves a Dataset record by its primary key (ID).
-        """
-        # The base class get method handles this query:
-        # return db.query(self.model).filter(self.model.id == id).first()
-        return super().get(db, id)
-    
+    pass
+
+# --- Instantiate the CRUD class ---
 crud_dataset = CRUDDataset(Dataset)

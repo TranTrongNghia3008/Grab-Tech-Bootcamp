@@ -19,11 +19,11 @@ class CleaningStatus(BaseModel):
     status: Literal['pending','running','completed','failed']
 
 class CleaningResults(BaseModel):
-    job_id: int
-    cleaned_dataset_id: int
     original_rows: int
     cleaned_rows: int
-    details: Dict[str, Any]
+    cleaned_dataset_id: int
+    cleaned_file_path: str
+    error: Optional[str] = None 
 
 class CleaningJobOut(BaseModel):
     id: int

@@ -1,0 +1,9 @@
+.log
+venv/
+data/
+automl_outputs/
+mlruns/
+migrations/
+.ini
+.db
+.csv
