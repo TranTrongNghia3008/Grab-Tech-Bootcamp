@@ -1,0 +1,50 @@
+# --- General Settings ---
+data_file_path: 'C:\Users\nkluo\Downloads\Math-Students.csv' # CHANGE TO YOUR ACTUAL PATH
+target_column: 'G1'
+session_id: 123
+experiment_name: 'automl_bigdata_exp'
+model_save_dir: './automl_models_bigdata'
+mlflow_tracking_uri: "sqlite:///mlflow_bigdata.db"
+
+# --- Task Detection ---
+unique_value_threshold_for_classification: 10 # Slightly increased maybe?
+
+# --- Performance Optimization Settings ---
+optimize_pandas_dtypes: True       # Enable memory optimization after loading
+use_sampling_in_setup: True        # CRITICAL: Enable sampling for faster setup
+sample_fraction: 0.1               # Use 10% data for setup (if use_sampling_in_setup=True)
+# sample_n: 50000                  # Alternative: Use fixed N samples (comment out sample_fraction if using this)
+n_jobs: -1                         # Use all available CPU cores (-1) or set specific number (e.g., 4)
+
+# --- PyCaret Setup Params ---
+numeric_imputation: 'mean'
+categorical_imputation: 'mode'
+normalize_regression: True
+# optimize_preprocessor: True      # Enable for PyCaret 3.0+ for potential setup speedup
+fold_strategy: 'stratifiedkfold'   # 'kfold' for regression, 'stratifiedkfold' for classification (usually default)
+baseline_folds: 5                  # Reduced folds for faster CV
+tuning_folds: 5                    # Reduced folds for faster tuning
+
+# --- PyCaret Model Selection/Tuning Params ---
+# Limit models to potentially faster/scalable ones for initial comparison
+include_models_compare: ['lr', 'ridge', 'lightgbm', 'rf', 'et'] # Example subset
+# exclude_models_compare: ['svm', 'knn'] # Example: exclude known slow ones
+
+# Baseline models to analyze in detail (can be different from compare)
+baseline_classification_models: ['lr', 'lightgbm']
+baseline_regression_models: ['lr', 'lightgbm']
+
+sort_metric_classification: 'AUC'    # AUC often better than Accuracy for classification
+optimize_metric_classification: 'AUC'
+sort_metric_regression: 'RMSE'       # RMSE often more interpretable than R2
+optimize_metric_regression: 'RMSE'
+
+# Tuning options
+tuning_search_library: 'optuna'      # 'scikit-learn' or 'optuna' (requires pip install optuna)
+tuning_search_algorithm: 'tpe'       # For optuna: 'tpe', 'random', 'grid'. For scikit-learn: 'random', 'grid'
+tuning_iterations: 25                # Number of trials (for optuna or scikit-learn random search)
+# custom_grid: {}                    # Optional: Define custom grid for 'grid' search
+
+# --- Prediction Settings ---
+prediction_target_column_name: 'prediction_label' # Pycaret >=3 name for classification label
+prediction_score_column_name: 'prediction_score' # Pycaret >=3 name for classification score

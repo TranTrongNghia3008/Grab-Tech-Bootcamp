@@ -1,38 +1,99 @@
-import { useParams } from "react-router-dom";
-import MainLayout from "../layout/MainLayout";
+import { useParams, useNavigate } from "react-router-dom";
+import { IoChevronBack } from "react-icons/io5";
+import { FaRobot, FaChartBar, FaFileExport, FaBrain } from "react-icons/fa";
+import { FiTool } from "react-icons/fi";
+import { MdOutlineCleaningServices } from "react-icons/md";
+import { FaQuestionCircle } from "react-icons/fa";
 import { useState } from "react";
-import PreparePanel from "./projectPanels/PreparePanel";
 
-const tabs = ["Prepare", "EDA", "Model Builder", "Chatbot", "Export"];
+import OverviewPanel from "./projectPanels/OverviewPanel";
+import DataInsightPanel from "./projectPanels/DataInsightPanel";
+import ChatbotPanel from "./projectPanels/ChatbotPanel";
+import ModelingPanel from "./projectPanels/ModelingPanel";
+import ExportPanel from "./projectPanels/ExportPanel";
+
+const tabs = [
+  { label: "Overview", icon: <MdOutlineCleaningServices className="mr-2" /> },
+  { label: "Data Insight", icon: <FaChartBar className="mr-2" /> },
+  { label: "Modeling", icon: <FaBrain className="mr-2" /> },
+  { label: "Virtual Assistant", icon: <FaRobot className="mr-2" /> },
+  { label: "Export", icon: <FaFileExport className="mr-2" /> },
+];
 
 export default function ProjectDetail() {
   const { id } = useParams();
-  const [activeTab, setActiveTab] = useState("Cleaning");
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("Overview");
+
+  // Dummy trạng thái kiểm tra xem đã chọn target và feature chưa
+  const [isTargetFeatureSelected, setIsTargetFeatureSelected] = useState(false);
+
+  const handleTabClick = (tabLabel) => {
+    if (!isTargetFeatureSelected && ["Data Insight", "Modeling", "Export"].includes(tabLabel)) {
+      return; // Không cho chuyển nếu chưa chọn target/feature
+    }
+    setActiveTab(tabLabel);
+  };
 
   return (
-    <MainLayout>
-      <h1 className="text-2xl font-bold mb-2">Project: {id}</h1>
-      <div className="flex space-x-4 mb-6 border-b pb-2">
-        {tabs.map((tab) => (
+    <div className="bg-[#FFFDF3] min-h-screen">
+      <div className="flex flex-wrap items-center justify-between gap-y-2 mb-2 border-b border-[#CDEBD5] p-4 bg-[#00843D] sticky top-0 z-100">
+        {/* Title with back button */}
+        <div className="flex items-center gap-3">
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`py-2 px-4 rounded-t font-medium ${
-              activeTab === tab ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700"
-            }`}
+            onClick={() => navigate("/projects")}
+            className="flex items-center text-white text-lg font-medium hover:underline hover:opacity-90 transition hover:bg-[#006C35] duration-200 border border-[#00843D] rounded-full p-1 hover:cursor-pointer"
           >
-            {tab}
+            <IoChevronBack />
           </button>
-        ))}
+          <h1 className="text-2xl font-bold text-white whitespace-nowrap">
+            Project: {id}
+          </h1>
+        </div>
+
+        {/* Tabs + Help icon */}
+        <div className="flex items-center gap-4">
+          <div className="inline-flex bg-[#E4F3E9] rounded-xl shadow-inner px-2 py-1 overflow-x-auto">
+            {tabs.map((tab) => {
+              const isDisabled = !isTargetFeatureSelected && ["Data Insight", "Modeling", "Export"].includes(tab.label);
+              return (
+                <button
+                  key={tab.label}
+                  onClick={() => handleTabClick(tab.label)}
+                  disabled={isDisabled}
+                  className={`flex items-center px-4 py-2 mx-1 rounded-lg text-sm font-medium whitespace-nowrap transition hover:cursor-pointer
+                    ${activeTab === tab.label ? "bg-[#00843D] text-white shadow" : ""}
+                    ${isDisabled ? "opacity-50 cursor-not-allowed" : "text-[#1B1F1D] hover:bg-[#CDEBD5]"}
+                  `}
+                >
+                  {tab.icon}
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Help Icon */}
+          <button
+            title="Click here for help"
+            className="text-white text-xl hover:opacity-80 transition"
+            onClick={() => alert("This is a guide about how to work with the project panels.")}
+          >
+            <FaQuestionCircle />
+          </button>
+        </div>
       </div>
 
-      <div>
-        {activeTab === "Prepare" && <PreparePanel />}
-        {activeTab === "EDA" && <EDAPanel />}
-        {activeTab === "Model Builder" && <ModelBuilderPanel />}
-        {activeTab === "Chatbot" && <ChatbotPanel />}
+      {/* Content */}
+      <div className="px-10 pb-10 space-y-6">
+        {activeTab === "Overview" && (
+          <OverviewPanel setIsTargetFeatureSelected={setIsTargetFeatureSelected} />
+        )}
+        {activeTab === "Data Insight" && <DataInsightPanel />}
+        {activeTab === "Modeling" && <ModelingPanel />}
+        {activeTab === "Virtual Assistant" && <ChatbotPanel />}
         {activeTab === "Export" && <ExportPanel />}
       </div>
-    </MainLayout>
+    </div>
   );
 }

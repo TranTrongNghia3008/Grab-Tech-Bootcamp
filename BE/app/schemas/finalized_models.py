@@ -1,36 +1,21 @@
-# backend/app/schemas/finalize.py
-from pydantic import BaseModel, Field, field_validator, UUID4
-from typing import Optional, Dict, Any
+from pydantic import BaseModel, UUID4
+from typing import Optional
 import datetime
-from app.schemas.automl_jobs import AutoMLJobResultBase
 
-class FinalizeModelRequest(BaseModel):
-    source_model_id: str = Field(...)
-    model_name: str = Field(...)
-    register_in_mlflow: bool = Field(False)
-    mlflow_registered_model_name: Optional[str] = Field(None)
-
-    @field_validator('mlflow_registered_model_name', mode='before', always=True)
-    def check_mlflow_name(cls, v, values):
-        if values.get('register_in_mlflow') and not v:
-            raise ValueError('mlflow_registered_model_name is required')
-        return v
-
-class FinalizeResult(AutoMLJobResultBase):
-    finalized_model_db_id: Optional[int] = None
-    saved_model_path: Optional[str] = None
-    saved_metadata_path: Optional[str] = None
-    model_uri_for_registry: Optional[str] = None
-    mlflow_registered_version: Optional[int] = None
-
-class FinalizedModelResponse(BaseModel):
-    id: int
-    session_id: int
+class FinalizedModelResponse(BaseModel): # Response schema
+    id: UUID4 # Keep UUID if model uses it
+    session_id: int # Matches AutoMLSession.id type
     model_name: str
     saved_model_path: str
-    model_uri_for_registry: Optional[str] = None
-    mlflow_registered_version: Optional[int] = None
+    saved_metadata_path: str
     created_at: datetime.datetime
+    # Add mlflow fields if they exist in the model
+    mlflow_run_id: Optional[str] = None
+    mlflow_registered_version: Optional[int] = None
+    model_uri_for_registry: Optional[str] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+# Add Create/Update schemas if you need to manage FinalizedModel directly via API
+# Usually created internally by the finalize step service

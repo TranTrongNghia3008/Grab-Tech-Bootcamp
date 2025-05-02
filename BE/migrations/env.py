@@ -7,10 +7,11 @@ from alembic import context
 
 from app.db.base import Base
 from app.db.session import engine
-import app.db.models.connections
 import app.db.models.datasets
-import app.db.models.model_jobs
 import app.db.models.cleaning_jobs
+import app.db.models.connections
+import app.db.models.automl_sessions
+import app.db.models.finalized_models
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

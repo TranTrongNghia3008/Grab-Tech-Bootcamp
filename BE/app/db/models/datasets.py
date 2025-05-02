@@ -13,5 +13,5 @@ class Dataset(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     connections = relationship("Connection", back_populates="datasets")
-    model_jobs = relationship('ModelJob', back_populates='datasets', cascade='all, delete-orphan')
     cleaning_jobs = relationship('CleaningJob', back_populates='datasets', cascade='all, delete-orphan')
+    automl_sessions = relationship('AutoMLSession', back_populates='datasets', cascade='all, delete-orphan')

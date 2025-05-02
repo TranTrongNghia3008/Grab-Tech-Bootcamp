@@ -17,8 +17,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # --- Configuration Class (Example using simple dictionary) ---
 # For larger projects, consider using Pydantic, dataclasses, or loading from YAML/JSON
 CONFIG = {
-    "data_file_path": 'E:/Grab Bootcamp/Grab-Tech-Bootcamp/ML/automl/train.csv',
-    "target_column": 'Survived',
+    "data_file_path": 'C:\Math-Students.csv',
+    "target_column": 'G1',
     "unique_value_threshold_for_classification": 20,
     "session_id": 123,
     "baseline_classification_models": ['lr', 'rf'],
