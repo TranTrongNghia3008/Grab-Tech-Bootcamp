@@ -53,6 +53,7 @@ export default function CreateProject() {
     const reader = new FileReader();
     reader.onload = (event) => {
       const csvData = event.target.result;
+      console.log("CSV Data:", csvData); // Log CSV data for debugging
 
       // Giả lập gọi API tạo project
       setTimeout(() => {

@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
-import { FaBrain, FaMagic, FaDownload } from "react-icons/fa";
+import { FaCogs , FaCalculator, FaDownload } from "react-icons/fa";
 import { Card, Button } from "../../components/ui";
 import DataTable from "../../components/DataTable";
 import SelectTargetFeaturesModel from "./SelectTargetFeatures";
 import AnalyzeModel from "./AnalyzeModel";
-import { Loader2 } from "lucide-react";
 import PredictOnNewData from "./PredictOnNewData";
 
 export default function ModelBuilderPanel() {
@@ -153,7 +152,7 @@ export default function ModelBuilderPanel() {
       {Object.keys(bestParams).length > 0 && (
         <Card className="space-y-4">
           <h3 className="text-gray-800 text-xl mb-4 flex items-center gap-2">
-            <FaBrain /> Best Parameters
+            <FaCogs  /> Best Parameters
           </h3>
           <DataTable data={Object.entries(bestParams).map(([key, val]) => ({ Parameter: key, Value: String(val) }))} />
         </Card>
@@ -163,7 +162,7 @@ export default function ModelBuilderPanel() {
       {cvMetrics.length > 0 && (
         <Card className="space-y-4">
           <h3 className="text-gray-800 text-xl mb-4 flex items-center gap-2">
-            <FaBrain /> Cross-Validation Metrics
+            <FaCalculator /> Cross-Validation Metrics
           </h3>
           <DataTable data={cvMetrics} />
         </Card>

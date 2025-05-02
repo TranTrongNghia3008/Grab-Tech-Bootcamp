@@ -1,21 +1,25 @@
 import { useEffect, useState } from "react";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { FaTableCells } from "react-icons/fa6";
-import { FaSearch, FaRocket, FaPuzzlePiece, FaChartLine, FaSync, FaExclamationTriangle } from "react-icons/fa";
-
+import { FaSearch, FaRocket, FaSync, FaExclamationTriangle, FaArrowRight } from "react-icons/fa";
 import Modal from "../../components/ui/Modal";
 import mockData from "../../components/mock/sampleData.json"; 
 import DataTable from "../../components/DataTable";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import Toast from "../../components/ui/Toast";
+import NextModal from "./NextModal";
 
-export default function PreparePanel() {
+export default function OverviewPanel({ setIsTargetFeatureSelected }) {
   const [showCleanModal, setShowCleanModal] = useState(false);
   const [cleanOptions, setCleanOptions] = useState({
-    missing: true,
-    outliers: true,
-    duplicates: true
+    remove_duplicates: true,
+    handle_missing_values: true,
+    smooth_noisy_data: true,
+    handle_outliers: true,
+    reduce_cardinality: true,
+    encode_categorical_values: true,
+    feature_scaling: true,
   });
 
   const [previewIssues, setPreviewIssues] = useState(null);
@@ -28,6 +32,12 @@ export default function PreparePanel() {
   const [csvFileName, setCsvFileName] = useState('data.csv');
   const [numRows, setNumRows] = useState(0);
   const [numColumns, setNumColumns] = useState(0);
+
+  const [showNextModal, setShowNextModal] = useState(false);
+  const [selectedTarget, setSelectedTarget] = useState("");
+  const [selectedFeatures, setSelectedFeatures] = useState([]);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analyzingStatus, setAnalyzingStatus] = useState(null);
 
   useEffect(() => {
     setData(mockData);
@@ -48,9 +58,15 @@ export default function PreparePanel() {
         setShowToast(false);
       }, 3000);
     }
-  }, [cleanStatus]);
+    if (analyzingStatus === "done" || analyzingStatus === "error") {
+      setShowToast(true);
+      setTimeout(() => {
+        setShowToast(false);
+      }, 3000);
+    }
+  }, [cleanStatus, analyzingStatus]);
 
-  const handlePreviewIssues = async () => {
+  const handlePreviewIssues = () => {
     if (showPreviewIssues) {
       setShowPreviewIssues(false);
       return;
@@ -68,9 +84,7 @@ export default function PreparePanel() {
   };
 
   const handleCleanData = () => {
-    console.log("Cleaning with options:", cleanOptions);
     setShowCleanModal(false);
-
     setCleanStatus("pending");
 
     setTimeout(() => {
@@ -82,8 +96,27 @@ export default function PreparePanel() {
     }, 1000);
   };
 
+  const handleFinishNextModal = () => {
+    localStorage.setItem("selectedTarget", selectedTarget);
+    localStorage.setItem("selectedFeatures", JSON.stringify(selectedFeatures));
+
+
+    setShowNextModal(false);
+    setAnalyzing(true);
+
+    setTimeout(() => {
+      setAnalyzing(false);
+      console.log("Finished analyzing and training models!");
+      setIsTargetFeatureSelected(true); 
+      setAnalyzingStatus("done");
+    }, 3000);
+  };
+
+  const columns = data.length > 0 ? Object.keys(data[0]) : [];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative pb-32">
+      {/* Header */}
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center">
           <h2 className="text-xl font-bold">Data Preparation</h2>
@@ -114,6 +147,7 @@ export default function PreparePanel() {
         </div>
       </div>
 
+      {/* Cleaning Status */}
       {cleanStatus && (
         <div className="flex items-center gap-2 text-sm text-gray-700 mb-3">
           {cleanStatus === "done" && <CheckCircle size={16} className="text-green-600" />}
@@ -124,6 +158,7 @@ export default function PreparePanel() {
         </div>
       )}
 
+      {/* Preview Issues */}
       {previewLoading && showPreviewIssues ? (
         <p className="text-gray-500">Detecting issues in your dataset...</p>
       ) : showPreviewIssues && previewIssues ? (
@@ -159,50 +194,27 @@ export default function PreparePanel() {
         </Card>
       ) : null}
 
+      {/* Table */}
       <DataTable data={data} />
 
+      {/* Clean Modal */}
       {showCleanModal && (
         <Modal onClose={() => setShowCleanModal(false)} title="Cleaning Options">
           <div className="space-y-5 text-sm text-gray-800">
             <div className="space-y-3">
-              <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  className="accent-green-600 h-4 w-4"
-                  checked={cleanOptions.missing}
-                  onChange={(e) => setCleanOptions({ ...cleanOptions, missing: e.target.checked })}
-                />
-                <span className="flex items-center gap-2">
-                  <FaPuzzlePiece className="text-blue-600" />
-                  Handle missing values
-                </span>
-              </label>
-
-              <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  className="accent-green-600 h-4 w-4"
-                  checked={cleanOptions.outliers}
-                  onChange={(e) => setCleanOptions({ ...cleanOptions, outliers: e.target.checked })}
-                />
-                <span className="flex items-center gap-2">
-                  <FaChartLine className="text-orange-500" />
-                  Remove outliers
-                </span>
-              </label>
-
-              <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  className="accent-green-600 h-4 w-4"
-                  checked={cleanOptions.duplicates}
-                  onChange={(e) => setCleanOptions({ ...cleanOptions, duplicates: e.target.checked })}
-                />
-                <span className="flex items-center gap-2">
-                  <FaSync className="text-red-500" />
-                  Remove duplicates
-                </span>
-              </label>
+              {Object.keys(cleanOptions).map((key) => (
+                <label key={key} className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    className="accent-green-600 h-4 w-4"
+                    checked={cleanOptions[key]}
+                    onChange={(e) =>
+                      setCleanOptions({ ...cleanOptions, [key]: e.target.checked })
+                    }
+                  />
+                  <span>{key.replace(/_/g, " ")}</span>
+                </label>
+              ))}
             </div>
 
             <div className="pt-4 text-right">
@@ -217,14 +229,52 @@ export default function PreparePanel() {
         </Modal>
       )}
 
+      {/* Toast */}
       {showToast && cleanStatus === "done" && (
         <Toast type="success" message="Data cleaning completed successfully!" />
       )}
       {showToast && cleanStatus === "error" && (
         <Toast type="error" message="An error occurred during cleaning." />
       )}
+      {showToast && analyzingStatus === "done" && (        
+        <Toast type="success" message="Model training completed successfully!" />
+      )}
+      {showToast && analyzingStatus === "error" && (
+        <Toast type="error" message="An error occurred during model training." />
+      )}
 
-      <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-white to-transparent"></div>
+      {/* Next Button */}
+      <div className="fixed bottom-6 right-6">
+        <Button onClick={() => setShowNextModal(true)} variant="primary">
+          <div className="flex items-center gap-2">
+            <FaArrowRight />
+            Next
+          </div>
+        </Button>
+      </div>
+
+      {/* Next Modal */}
+      {showNextModal && (
+        <Modal title="Select Target and Features" onClose={() => setShowNextModal(false)}>
+          <NextModal
+            availableColumns={columns}
+            selectedTarget={selectedTarget}
+            setSelectedTarget={setSelectedTarget}
+            selectedFeatures={selectedFeatures}
+            setSelectedFeatures={setSelectedFeatures}
+            onCancel={() => setShowNextModal(false)}
+            onFinish={handleFinishNextModal}
+          />
+        </Modal>
+      )}
+
+      {/* Analyzing Overlay */}
+      {analyzing && (
+        <div className="fixed inset-0 bg-white/70 bg-opacity-70 flex flex-col items-center justify-center z-50">
+          <Loader2 className="animate-spin text-green-600" size={48} />
+          <p className="mt-4 text-gray-700 font-semibold">Analyzing and training models...</p>
+        </div>
+      )}
     </div>
   );
 }

@@ -4,25 +4,17 @@ import { Button, Card } from "../../components/ui";
 import { FaChartBar, FaProjectDiagram } from "react-icons/fa";
 import { FiBarChart2, FiFileText } from "react-icons/fi";
 import { Loader2 } from "lucide-react";
+import ChartGeneration from "./ChartGeneration";
 
-export default function EDAPanel() {
+export default function DataInsightPanel() {
 //   const datasetId = 123; 
 
   const [stats, setStats] = useState(null);
   const [corr, setCorr] = useState(null);
-  const [chart, setChart] = useState(null);
-  const [loading, setLoading] = useState(false);
   const [reports, setReports] = useState([]);
   const [loadingReports, setLoadingReports] = useState(false);
   const [fetched, setFetched] = useState(false); 
 
-  const [chartForm, setChartForm] = useState({
-    type: "bar",
-    x: "",
-    y: ""
-  });
-
-  const columns = ["age", "income", "gender", "score"]; // giả lập cột
 
   // Mock fetch stats
   useEffect(() => {
@@ -67,16 +59,6 @@ export default function EDAPanel() {
     ]);
   }, []);
 
-  const handleGenerateChart = async () => {
-    setLoading(true);
-
-    // Gọi API POST /v1/datasets/{id}/eda/charts
-    // Dữ liệu giả lập:
-    setTimeout(() => {
-      setChart("https://images.squarespace-cdn.com/content/v1/55b6a6dce4b089e11621d3ed/62a2d66b-8435-4e41-8df9-262db165ed79/NPL+and+Reserves+combo+chart.png");
-      setLoading(false);
-    }, 1200);
-  };
 
   const handleGetReport = () => {
     setLoadingReports(true);
@@ -227,90 +209,9 @@ export default function EDAPanel() {
         </Card>
       )}
 
-
+      
       {/* Chart Generation */}
-      <Card>
-        <h3 className="text-gray-800 text-xl mb-4 flex items-center gap-2">
-          <FiBarChart2 /> Generate Chart
-        </h3>
-
-        <div className="flex flex-wrap items-center justify-center gap-4">
-          {/* Chart Type */}
-          <div className="flex flex-col text-sm">
-            <label htmlFor="chartType" className="mb-1 text-gray-600 font-medium">Chart Type</label>
-            <select
-              id="chartType"
-              value={chartForm.type}
-              onChange={(e) => setChartForm({ ...chartForm, type: e.target.value })}
-              className="border border-green-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-600"
-            >
-              <option value="bar">Bar</option>
-              <option value="line">Line</option>
-              <option value="scatter">Scatter</option>
-              <option value="histogram">Histogram</option>
-            </select>
-          </div>
-
-          {/* X Axis */}
-          <div className="flex flex-col text-sm">
-            <label htmlFor="xAxis" className="mb-1 text-gray-600 font-medium">X Axis</label>
-            <select
-              id="xAxis"
-              value={chartForm.x}
-              onChange={(e) => setChartForm({ ...chartForm, x: e.target.value })}
-              className="border border-green-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-600"
-            >
-              <option value="">Select X</option>
-              {columns.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Y Axis (if not histogram) */}
-          {chartForm.type !== "histogram" && (
-            <div className="flex flex-col text-sm">
-              <label htmlFor="yAxis" className="mb-1 text-gray-600 font-medium">Y Axis</label>
-              <select
-                id="yAxis"
-                value={chartForm.y}
-                onChange={(e) => setChartForm({ ...chartForm, y: e.target.value })}
-                className="border border-green-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-600"
-              >
-                <option value="">Select Y</option>
-                {columns.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Generate Button */}
-          <div className="pt-5">
-            <Button
-              onClick={handleGenerateChart}
-            >
-              Generate
-            </Button>
-          </div>
-        </div>
-
-
-        {/* Chart Result */}
-        <div className="pt-6">
-          {loading ? (
-            <div className="flex items-center gap-2 text-sm text-gray-700">
-              <Loader2 size={16} className="animate-spin text-green-500" />
-              <span className="capitalize">Generating chart...</span>
-            </div>
-          ) : chart && (
-            <div className="border rounded-lg p-4 bg-gray-50 shadow-inner">
-              <img src={chart} alt="EDA chart" className="w-full max-h-[500px] object-contain" />
-            </div>
-          )}
-        </div>
-      </Card>
-
+      <ChartGeneration/>
 
       {/* EDA Reports Section */}
       <Card>
