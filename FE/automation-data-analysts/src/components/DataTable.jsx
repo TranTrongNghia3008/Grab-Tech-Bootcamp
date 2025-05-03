@@ -69,7 +69,9 @@ export default function DataTable({ data }) {
                   key={col}
                   className="px-4 py-2 whitespace-nowrap w-[200px] min-w-[200px] border-r border-[#CDEBD5] text-[#1B1F1D]"
                 >
-                  {row[col]}
+                  {typeof row[col] === "number"
+                    ? row[col].toFixed(3)
+                    : row[col]}
                 </td>
               ))}
             </tr>

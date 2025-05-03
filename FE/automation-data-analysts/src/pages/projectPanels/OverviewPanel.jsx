@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState,  } from "react";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { FaTableCells } from "react-icons/fa6";
 import { FaSearch, FaRocket, FaSync, FaExclamationTriangle, FaArrowRight } from "react-icons/fa";
@@ -9,17 +9,26 @@ import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import Toast from "../../components/ui/Toast";
 import NextModal from "./NextModal";
+import { useAppContext } from "../../contexts/AppContext";
+import { getPreviewIssues, cleaningDataset, getCleaningStatus } from "../../components/services/cleaningServices";
+import { autoMLSession } from "../../components/services/modelingServices";
+
+
 
 export default function OverviewPanel({ setIsTargetFeatureSelected }) {
+  // const { state } = useAppContext(); 
+  const { state, updateState } = useAppContext();
+  const { datasetId } = state;
+  // const datasetId = 13; // Thay thế bằng datasetId thực tế từ context hoặc props
   const [showCleanModal, setShowCleanModal] = useState(false);
   const [cleanOptions, setCleanOptions] = useState({
-    remove_duplicates: true,
-    handle_missing_values: true,
-    smooth_noisy_data: true,
-    handle_outliers: true,
-    reduce_cardinality: true,
-    encode_categorical_values: true,
-    feature_scaling: true,
+    "remove_duplicates": true,
+    "handle_missing_values": true,
+    "smooth_noisy_data": true,
+    "handle_outliers": true,
+    "reduce_cardinality": true,
+    "encode_categorical_values": true,
+    "feature_scaling": true
   });
 
   const [previewIssues, setPreviewIssues] = useState(null);
@@ -52,13 +61,13 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
   }, []);
 
   useEffect(() => {
-    if (cleanStatus === "done" || cleanStatus === "error") {
+    if (cleanStatus === "completed" || cleanStatus === "failed") {
       setShowToast(true);
       setTimeout(() => {
         setShowToast(false);
       }, 3000);
     }
-    if (analyzingStatus === "done" || analyzingStatus === "error") {
+    if (analyzingStatus === "completed" || analyzingStatus === "failed") {
       setShowToast(true);
       setTimeout(() => {
         setShowToast(false);
@@ -66,37 +75,50 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
     }
   }, [cleanStatus, analyzingStatus]);
 
-  const handlePreviewIssues = () => {
+  const handlePreviewIssues = async () => {
     if (showPreviewIssues) {
       setShowPreviewIssues(false);
       return;
     }
     setPreviewLoading(true);
     setShowPreviewIssues(true);
-    setTimeout(() => {
-      setPreviewIssues({
-        missing: { age: 5, income: 2 },
-        outliers: { income: 3 },
-        duplicates: 1
-      });
-      setPreviewLoading(false);
-    }, 800);
+    const results = await getPreviewIssues(datasetId);
+    setPreviewLoading(false);
+    setPreviewIssues(results);
   };
 
-  const handleCleanData = () => {
+  const handleCleanData = async () => {
     setShowCleanModal(false);
     setCleanStatus("pending");
-
-    setTimeout(() => {
+  
+    try {
+      const results = await cleaningDataset(datasetId, cleanOptions);
       setCleanStatus("running");
-
-      setTimeout(() => {
-        setCleanStatus("done");
-      }, 2000);
-    }, 1000);
+      const jobId = results.id;
+  
+      const intervalId = setInterval(async () => {
+        try {
+          const res = await getCleaningStatus(jobId);
+          const status = res.status;
+  
+          if (status === "completed" || status === "failed") {
+            setCleanStatus(status);
+            clearInterval(intervalId); // Dừng kiểm tra khi job kết thúc
+          }
+        } catch (error) {
+          console.error("Failed to check cleaning status:", error);
+          setCleanStatus("failed");
+          clearInterval(intervalId);
+        }
+      }, 2000); 
+  
+    } catch (error) {
+      console.error("Cleaning failed:", error);
+      setCleanStatus("failed");
+    }
   };
 
-  const handleFinishNextModal = () => {
+  const handleFinishNextModal = async () => {
     localStorage.setItem("selectedTarget", selectedTarget);
     localStorage.setItem("selectedFeatures", JSON.stringify(selectedFeatures));
 
@@ -104,15 +126,23 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
     setShowNextModal(false);
     setAnalyzing(true);
 
-    setTimeout(() => {
+    try { 
+      const results = await autoMLSession(datasetId, selectedTarget, selectedFeatures);
       setAnalyzing(false);
       console.log("Finished analyzing and training models!");
+      console.log("Results:", results);
+      updateState({sessionId: results.session_id, comparisonResults: results.comparison_results});
       setIsTargetFeatureSelected(true); 
-      setAnalyzingStatus("done");
-    }, 3000);
+      setAnalyzingStatus("completed");
+    } catch (error) {
+      console.error("Error during analyzing and training models:", error);
+      setAnalyzing(false);
+      setAnalyzingStatus("failed");
+    }
   };
 
-  const columns = data.length > 0 ? Object.keys(data[0]) : [];
+  // const columns = data.length > 0 ? Object.keys(data[0]) : [];
+  const columns = ["Store ID","Employee Number" ,"Area" ,"Date" ,"Sales" ,"Marketing Spend" ,"Electronics Sales" ,"Home Sales" ,"Clothes Sales"]
 
   return (
     <div className="space-y-6 relative pb-32">
@@ -150,8 +180,8 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
       {/* Cleaning Status */}
       {cleanStatus && (
         <div className="flex items-center gap-2 text-sm text-gray-700 mb-3">
-          {cleanStatus === "done" && <CheckCircle size={16} className="text-green-600" />}
-          {cleanStatus === "error" && <AlertCircle size={16} className="text-red-600" />}
+          {cleanStatus === "completed" && <CheckCircle size={16} className="text-green-600" />}
+          {cleanStatus === "failed" && <AlertCircle size={16} className="text-red-600" />}
           {cleanStatus === "running" && <Loader2 size={16} className="animate-spin text-green-500" />}
           {cleanStatus === "pending" && <Loader2 size={16} className="animate-pulse text-yellow-500" />}
           <span className="capitalize">Cleaning status: {cleanStatus}</span>
@@ -230,16 +260,16 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
       )}
 
       {/* Toast */}
-      {showToast && cleanStatus === "done" && (
+      {showToast && cleanStatus === "completed" && (
         <Toast type="success" message="Data cleaning completed successfully!" />
       )}
-      {showToast && cleanStatus === "error" && (
+      {showToast && cleanStatus === "failed" && (
         <Toast type="error" message="An error occurred during cleaning." />
       )}
-      {showToast && analyzingStatus === "done" && (        
+      {showToast && analyzingStatus === "completed" && (        
         <Toast type="success" message="Model training completed successfully!" />
       )}
-      {showToast && analyzingStatus === "error" && (
+      {showToast && analyzingStatus === "failed" && (
         <Toast type="error" message="An error occurred during model training." />
       )}
 

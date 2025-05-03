@@ -1,20 +1,10 @@
-import { useEffect, useState } from "react";
 import { FaBalanceScale } from "react-icons/fa";
 import { Card } from "../../components/ui";
 import DataTable from "../../components/DataTable";
 import AnalyzeModel from "./AnalyzeModel";
 import CompareModels from "./CompareModels";
 
-export default function BaselineTab() {
-  const [comparisonResults, setComparisonResults] = useState([]);
-
-  useEffect(() => {
-    const temp = localStorage.getItem("comparisonResults");
-    if (temp) {
-      setComparisonResults(JSON.parse(temp));
-    }
-  }, []);
-
+export default function BaselineTab({ comparisonResults = [], sessionId = 1 }) {
   return (
     <div className="space-y-8">
       {comparisonResults.length > 0 && (
@@ -27,7 +17,7 @@ export default function BaselineTab() {
             <DataTable data={comparisonResults} />
           </Card>
 
-          <AnalyzeModel availableModels={comparisonResults} />
+          <AnalyzeModel availableModels={comparisonResults} sessionId={sessionId}/>
           <CompareModels models={comparisonResults} />
         </>
       )}

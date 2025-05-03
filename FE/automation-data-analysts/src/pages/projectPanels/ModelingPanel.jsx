@@ -4,11 +4,28 @@ import { Card } from "../../components/ui";
 import BaselineTab from "./BaselineTab";
 import TuningTab from "./TuningTab";
 import PredictionTab from "./PredictionTab";
+import { useAppContext } from "../../contexts/AppContext";
 
 export default function ModelingPanel() {
+  const { state } = useAppContext();
+  const { datasetId, sessionId, comparisonResults } = state;
+  // const datasetId = 4; 
   const [selectedTarget, setSelectedTarget] = useState("");
   const [selectedFeatures, setSelectedFeatures] = useState([]);
   const [activeTab, setActiveTab] = useState("Baseline");
+  const [isFinalized, setIsFinalized] = useState(false);
+
+  console.log("ModelingPanel - datasetId:", datasetId);
+  console.log("ModelingPanel - sessionId:", sessionId);
+  console.log("ModelingPanel - comparisonResults:", comparisonResults);
+
+  const formattedComparisonResults= comparisonResults.data.map(row => {
+    const obj = {};
+    comparisonResults.columns.forEach((col, idx) => {
+      obj[col] = row[idx];
+    });
+    return obj;
+  });
 
   useEffect(() => {
     const target = localStorage.getItem("selectedTarget");
@@ -17,7 +34,13 @@ export default function ModelingPanel() {
     if (features.length > 0) setSelectedFeatures(features);
   }, []);
 
-  const bestModelId = "lr"
+  const bestModel = formattedComparisonResults.reduce((best, current) => {
+    const score = current["RMSE"] - current["R2"]; // Giảm RMSE, tăng R2
+    const bestScore = best["RMSE"] - best["R2"];
+    return score < bestScore ? current : best;
+  });
+
+  const bestModelId = bestModel["index"];
   return (
     <div className="space-y-8">
       <h2 className="text-xl font-bold">Modeling</h2>
@@ -73,26 +96,35 @@ export default function ModelingPanel() {
       {/* Tabs */}
       <div>
         <div className="flex space-x-4 mb-6 border-b border-gray-300">
-          {["Baseline", "Tuning", "Prediction"].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 text-sm font-medium transition rounded-t-md 
-                ${
-                  activeTab === tab
+          {["Baseline", "Tuning", "Prediction"].map((tab) => {
+            const isDisabled = tab === "Prediction" && !isFinalized;
+
+            return (
+              <button
+                key={tab}
+                onClick={() => {
+                  if (!isDisabled) setActiveTab(tab);
+                }}
+                disabled={isDisabled}
+                className={`px-4 py-2 text-sm font-medium transition rounded-t-md 
+                  ${activeTab === tab
                     ? "text-green-700 border-b-2 border-green-600"
                     : "hover:bg-green-100"
-                }
-              `}
-            >
-              {tab}
-            </button>
-          ))}
+                  }
+                  ${isDisabled ? "text-gray-400 cursor-not-allowed" : ""}
+                `}
+                title={isDisabled ? "Please finalize tuning before predicting." : ""}
+              >
+                {tab}
+              </button>
+            );
+          })}
         </div>
 
+
         {/* Tab content */}
-        {activeTab === "Baseline" && <BaselineTab />}
-        {activeTab === "Tuning" && <TuningTab bestModelId={bestModelId} />}
+        {activeTab === "Baseline" && <BaselineTab comparisonResults={formattedComparisonResults} sessionId={sessionId}/>}
+        {activeTab === "Tuning" && <TuningTab sessionId={sessionId} bestModelId={bestModelId} comparisonResults={formattedComparisonResults} setIsFinalized={setIsFinalized}/>}
         {activeTab === "Prediction" && <PredictionTab />}
       </div>
 

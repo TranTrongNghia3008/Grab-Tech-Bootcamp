@@ -11,6 +11,7 @@ import DataInsightPanel from "./projectPanels/DataInsightPanel";
 import ChatbotPanel from "./projectPanels/ChatbotPanel";
 import ModelingPanel from "./projectPanels/ModelingPanel";
 import ExportPanel from "./projectPanels/ExportPanel";
+import { useAppContext } from "../contexts/AppContext";
 
 const tabs = [
   { label: "Overview", icon: <MdOutlineCleaningServices className="mr-2" /> },
@@ -21,6 +22,7 @@ const tabs = [
 ];
 
 export default function ProjectDetail() {
+  const { state } = useAppContext(); // Lấy state từ context
   const { id } = useParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("Overview");
@@ -29,11 +31,13 @@ export default function ProjectDetail() {
   const [isTargetFeatureSelected, setIsTargetFeatureSelected] = useState(false);
 
   const handleTabClick = (tabLabel) => {
-    if (!isTargetFeatureSelected && ["Data Insight", "Modeling", "Export"].includes(tabLabel)) {
+    if (!isTargetFeatureSelected && ["Export"].includes(tabLabel)) {
       return; // Không cho chuyển nếu chưa chọn target/feature
     }
     setActiveTab(tabLabel);
   };
+
+  console.log("Current datasetId:", state.datasetId);
 
   return (
     <div className="bg-[#FFFDF3] min-h-screen">
@@ -55,7 +59,7 @@ export default function ProjectDetail() {
         <div className="flex items-center gap-4">
           <div className="inline-flex bg-[#E4F3E9] rounded-xl shadow-inner px-2 py-1 overflow-x-auto">
             {tabs.map((tab) => {
-              const isDisabled = !isTargetFeatureSelected && ["Data Insight", "Modeling", "Export"].includes(tab.label);
+              const isDisabled = !isTargetFeatureSelected && ["Export"].includes(tab.label);
               return (
                 <button
                   key={tab.label}

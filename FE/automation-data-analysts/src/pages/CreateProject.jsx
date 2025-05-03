@@ -4,6 +4,8 @@ import UploadDropzone from "../components/UploadDropzone";
 import MainLayout from "../layout/MainLayout";
 import { Button, Card, Modal } from "../components/ui";
 import { FiFolder } from "react-icons/fi";
+import { upLoadDataset } from "../components/services/datasetService";
+import { useAppContext } from "../contexts/AppContext";
 
 
 export default function CreateProject() {
@@ -17,6 +19,7 @@ export default function CreateProject() {
   const [selectedDataset, setSelectedDataset] = useState(""); // Trạng thái để lưu dataset đã chọn
   const [activeTab, setActiveTab] = useState(1); // Trạng thái tab đang hoạt động
   const navigate = useNavigate();
+  const { updateState } = useAppContext();
 
   // Giả lập tải danh sách datasets có sẵn
   const fetchDatasetList = () => {
@@ -37,7 +40,7 @@ export default function CreateProject() {
     setError("");
   };
 
-  const handleCreateWithUpload = () => {
+  const handleCreateWithUpload = async () => {
     if (!projectName.trim()) {
       setError("Please enter a project name.");
       return;
@@ -50,28 +53,49 @@ export default function CreateProject() {
     setError("");
     setLoading(true);
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const csvData = event.target.result;
-      console.log("CSV Data:", csvData); // Log CSV data for debugging
+    try {
+      const result = await upLoadDataset(file); // Gọi API tải lên dataset
+      console.log("Dataset ID:", result.id); // Log kết quả tải lên cho việc gỡ lỗi
+      updateState({ datasetId: result.id }); // Cập nhật datasetId vào context nếu cần
+      const newProject = {
+        id: result.projectId || Date.now(),
+        name: projectName.trim(),
+        updatedAt: new Date().toISOString(),
+      };
+  
+      localStorage.setItem("currentProject", JSON.stringify(newProject));
+      localStorage.setItem("dataset", JSON.stringify(result.dataset || {})); // Tuỳ theo response của backend
+  
+      navigate("/project/" + newProject.id);
+    } catch (error) {
+      console.error("Upload failed:", error);
+      setError("Failed to upload dataset. Please try again.");
+    } finally {
+      setLoading(false);
+    }
 
-      // Giả lập gọi API tạo project
-      setTimeout(() => {
-        const newProject = {
-          id: Date.now(),
-          name: projectName.trim(),
-          updatedAt: new Date().toISOString(),
-        };
+    // const reader = new FileReader();
+    // reader.onload = (event) => {
+    //   const csvData = event.target.result;
+    //   console.log("CSV Data:", csvData); // Log CSV data for debugging
 
-        localStorage.setItem("currentProject", JSON.stringify(newProject));
-        localStorage.setItem("dataset", csvData);
+    //   // Giả lập gọi API tạo project
+    //   setTimeout(() => {
+    //     const newProject = {
+    //       id: Date.now(),
+    //       name: projectName.trim(),
+    //       updatedAt: new Date().toISOString(),
+    //     };
 
-        setLoading(false);
-        navigate("/project/" + newProject.id);
-      }, 1000);
-    };
+    //     localStorage.setItem("currentProject", JSON.stringify(newProject));
+    //     localStorage.setItem("dataset", csvData);
 
-    reader.readAsText(file);
+    //     setLoading(false);
+    //     navigate("/project/" + newProject.id);
+    //   }, 1000);
+    // };
+
+    // reader.readAsText(file);
   };
 
   const handleCreateWithDbConnection = () => {
@@ -308,52 +332,52 @@ export default function CreateProject() {
       {/* Modal for DB Connection */}
       {isModalOpen && (
         <Modal title="Database Connection" onClose={handleModalClose}>
-  <div className="p-4">
-    <p className="text-gray-600 mb-6">Please enter your database details below to establish a secure connection.</p>
+        <div className="p-4">
+          <p className="text-gray-600 mb-6">Please enter your database details below to establish a secure connection.</p>
 
-    <form onSubmit={(e) => e.preventDefault()} className="space-y-5">
-      {/* Database URL */}
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1">Database URL</label>
-        <input
-          type="text"
-          placeholder="e.g., mongodb+srv://..."
-          className="w-full border border-gray-300 focus:border-green-600 focus:ring-green-600 rounded-lg px-4 py-2 text-sm shadow-sm outline-none transition"
-        />
-      </div>
+          <form onSubmit={(e) => e.preventDefault()} className="space-y-5">
+            {/* Database URL */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Database URL</label>
+              <input
+                type="text"
+                placeholder="e.g., mongodb+srv://..."
+                className="w-full border border-gray-300 focus:border-green-600 focus:ring-green-600 rounded-lg px-4 py-2 text-sm shadow-sm outline-none transition"
+              />
+            </div>
 
-      {/* Username */}
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1">Username</label>
-        <input
-          type="text"
-          placeholder="Your DB username"
-          className="w-full border border-gray-300 focus:border-green-600 focus:ring-green-600 rounded-lg px-4 py-2 text-sm shadow-sm outline-none transition"
-        />
-      </div>
+            {/* Username */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Username</label>
+              <input
+                type="text"
+                placeholder="Your DB username"
+                className="w-full border border-gray-300 focus:border-green-600 focus:ring-green-600 rounded-lg px-4 py-2 text-sm shadow-sm outline-none transition"
+              />
+            </div>
 
-      {/* Password */}
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1">Password</label>
-        <input
-          type="password"
-          placeholder="••••••••"
-          className="w-full border border-gray-300 focus:border-green-600 focus:ring-green-600 rounded-lg px-4 py-2 text-sm shadow-sm outline-none transition"
-        />
-      </div>
+            {/* Password */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Password</label>
+              <input
+                type="password"
+                placeholder="••••••••"
+                className="w-full border border-gray-300 focus:border-green-600 focus:ring-green-600 rounded-lg px-4 py-2 text-sm shadow-sm outline-none transition"
+              />
+            </div>
 
-      {/* Submit */}
-      <div className="pt-2 text-right">
-        <Button
-          onClick={handleSubmitDbConnection}
-          className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-2 rounded-lg transition"
-        >
-          Connect
-        </Button>
-      </div>
-    </form>
-  </div>
-</Modal>
+            {/* Submit */}
+            <div className="pt-2 text-right">
+              <Button
+                onClick={handleSubmitDbConnection}
+                className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-2 rounded-lg transition"
+              >
+                Connect
+              </Button>
+            </div>
+          </form>
+        </div>
+      </Modal>
 
       )}
     </MainLayout>
