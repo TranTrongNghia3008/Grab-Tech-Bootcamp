@@ -1321,10 +1321,13 @@ class AutoMLRunner:
         active_mlflow_run_id = None
         experiment_save_path = None
         results_df_to_return = None
-        detected_task_type_return = None
+        final_task_type_return = None # Store the task type that ultimately worked
         step1_start_time = time.time()
         step_name = "Step1_SetupCompare"
         run_name = f"{step_name}_{self.session_id}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        initial_detected_task_type = None # Track the first detected type
+        setup_attempt = 1
+        max_setup_attempts = 2 # Allow initial attempt + 1 retry
 
         # --- Pre-checks ---
         required_keys = ["data_file_path", "target_column"]
@@ -1413,17 +1416,86 @@ class AutoMLRunner:
 
 
                 # 2. Detect Task Type
-                logger.info("Step 1.2: Detecting Task Type...")
+                logger.info("Step 1.2: Initial Task Type Detection...")
                 if not self._detect_task_type():
-                     raise ValueError("Task type detection failed.")
-                detected_task_type_return = self.task_type
-                mlflow.log_param("detected_task_type", self.task_type)
+                     raise ValueError("Initial task type detection failed.")
+                initial_detected_task_type = self.task_type
+                logger.info(f"Initially detected task type: {initial_detected_task_type}")
+                mlflow.log_param("initial_detected_task_type", initial_detected_task_type)
 
-                # 3. Setup PyCaret
+                # 3. Setup PyCaret (with retry logic)
                 logger.info("Step 1.3: Setting up PyCaret...")
-                if not self._setup_pycaret(): # Handles its own duration/param logging
-                     raise RuntimeError("PyCaret setup failed.")
+                setup_success = False
+                last_setup_exception = None
+                while setup_attempt <= max_setup_attempts and not setup_success:
+                    logger.info(f"--- PyCaret Setup Attempt {setup_attempt}/{max_setup_attempts} with Task Type: {self.task_type} ---")
+                    mlflow.set_tag("setup_attempt", setup_attempt) # Log attempt number
+                    mlflow.log_param(f"setup_attempt_{setup_attempt}_task_type", self.task_type)
 
+                    try:
+                        setup_success = self._setup_pycaret() # This function uses self.task_type
+                        if setup_success:
+                            logger.info(f"PyCaret setup successful on attempt {setup_attempt} with task type: {self.task_type}")
+                            final_task_type_return = self.task_type # Store the successful type
+                            mlflow.log_param("final_confirmed_task_type", final_task_type_return) # Log final type
+                        else:
+                            # _setup_pycaret returned False, but didn't raise Exception (less common)
+                            logger.warning(f"PyCaret setup attempt {setup_attempt} failed (returned False).")
+                            # Force retry by breaking loop condition effectively
+                            # setup_success remains False
+
+                    except Exception as setup_exc:
+                         logger.warning(f"PyCaret setup attempt {setup_attempt} with task type '{self.task_type}' raised an error: {setup_exc}", exc_info=True)
+                         last_setup_exception = setup_exc
+                         mlflow.log_param(f"setup_attempt_{setup_attempt}_error", f"{type(setup_exc).__name__}: {str(setup_exc)[:500]}")
+                         # setup_success remains False
+
+                    # --- Retry Logic ---
+                    if not setup_success and setup_attempt < max_setup_attempts:
+                        setup_attempt += 1
+                        # Switch task type
+                        original_type = self.task_type
+                        alternate_type = 'regression' if original_type == 'classification' else 'classification'
+                        logger.warning(f"Setup failed with {original_type}. Retrying with task type: {alternate_type}")
+
+                        # Update runner state for the next attempt
+                        self.task_type = alternate_type
+                        self.config['task_type'] = self.task_type # Keep config consistent if needed later
+
+                        # Explicitly check if metrics for alternate type exist BEFORE calling setup again
+                        alt_sort_metric_key = f"sort_metric_{alternate_type}"
+                        alt_opt_metric_key = f"optimize_metric_{alternate_type}"
+                        if alt_sort_metric_key not in self.config or alt_opt_metric_key not in self.config:
+                            err_msg = f"Cannot retry with task type '{alternate_type}'. Required config keys missing: {alt_sort_metric_key}, {alt_opt_metric_key}"
+                            logger.error(err_msg)
+                            mlflow.log_param(f"setup_attempt_{setup_attempt}_error", "Missing config for alternate task type metrics")
+                            raise ValueError(err_msg) from last_setup_exception # Fail the step now
+
+                        # Reset internal state variables affected by _setup_pycaret
+                        self.pycaret_module = None
+                        self.sort_metric = None
+                        self.optimize_metric = None
+                        self.setup_env = None
+                        self.preprocessor = None
+                        self.train_data = None
+                        self.test_data = None
+
+                    elif not setup_success and setup_attempt >= max_setup_attempts:
+                        logger.error(f"PyCaret setup failed after {max_setup_attempts} attempts.")
+                        # Re-raise the last exception encountered or a generic one if _setup returned False
+                        if last_setup_exception:
+                            raise RuntimeError("PyCaret setup failed after multiple attempts.") from last_setup_exception
+                        else:
+                            raise RuntimeError("PyCaret setup failed after multiple attempts (returned False).")
+                    else: # setup_success is True
+                        break # Exit the while loop
+
+                # If loop finishes without setup_success (shouldn't happen due to raise)
+                if not setup_success:
+                     raise RuntimeError("PyCaret setup definitively failed.")
+
+                # --- Steps 4, 5, 6 (Proceed only if setup succeeded) ---
+                
                 # 4. Compare Models
                 logger.info("Step 1.4: Comparing Models...")
                 if not self._compare_models(): # Handles own logging
@@ -1465,27 +1537,35 @@ class AutoMLRunner:
                  except Exception as log_err: logger.error(f"Failed log error tag to MLflow: {log_err}")
              experiment_save_path = None
              results_df_to_return = None
-             detected_task_type_return = None
+             final_task_type_return = None # Ensure None on failure
 
         finally:
             step1_total_duration = time.time() - step1_start_time
             logger.info(f"{step_name} finished. Status: {step_status}. Duration: {step1_total_duration:.2f}s.")
-            # Final status update for the MLflow run
             if active_mlflow_run_id and mlflow.active_run() and mlflow.active_run().info.run_id == active_mlflow_run_id:
                 try:
                     mlflow.log_metric("step1_total_duration_sec", step1_total_duration)
                     mlflow.set_tag(f"{step_name}_status", step_status)
-                    mlflow.end_run() # End the run explicitly
+                    # Log final task type even on failure if it was determined before error
+                    if final_task_type_return:
+                         mlflow.log_param("final_confirmed_task_type", final_task_type_return)
+                    elif self.task_type and setup_attempt > 1: # Log the last attempted type if failed on retry
+                         mlflow.log_param("last_attempted_task_type_on_fail", self.task_type)
+                    elif initial_detected_task_type: # Log initial if failed before retry
+                        mlflow.log_param("initial_detected_task_type_on_fail", initial_detected_task_type)
+
+                    mlflow.end_run()
                     logger.info(f"Ended MLflow Run {active_mlflow_run_id} ({step_name}).")
                 except Exception as final_log_err:
                     logger.error(f"Failed log final status/duration or end MLflow run {active_mlflow_run_id}: {final_log_err}")
-            elif mlflow.active_run(): # Safety check for unexpected active runs
+            elif mlflow.active_run():
                 current_run_id = mlflow.active_run().info.run_id
                 logger.warning(f"Unexpected MLflow run ({current_run_id}) active at end of {step_name}. Ending it.")
                 try: mlflow.end_run(status="KILLED")
                 except Exception as end_err: logger.error(f"Failed end unexpected run {current_run_id}: {end_err}")
 
-        return experiment_save_path, results_df_to_return, detected_task_type_return
+        # Return the task type that WORKED
+        return experiment_save_path, results_df_to_return, final_task_type_return
 
 
     # ========================================================================
