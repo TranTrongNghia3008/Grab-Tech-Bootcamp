@@ -1,5 +1,6 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Dict, Any, Literal, Optional
+from .commons import DataFrameStructure
 
 class CleaningConfig(BaseModel):
     remove_duplicates: bool = False
@@ -17,6 +18,11 @@ class CleaningPreview(BaseModel):
 
 class CleaningStatus(BaseModel):
     status: Literal['pending','running','completed','failed']
+    
+class CleaningDataPreview(BaseModel):
+    preview_cleaned: DataFrameStructure = Field(..., description="Preview of the first 100 rows (or fewer if less data).")
+    preview_row: int
+    total_row: int
 
 class CleaningResults(BaseModel):
     original_rows: int

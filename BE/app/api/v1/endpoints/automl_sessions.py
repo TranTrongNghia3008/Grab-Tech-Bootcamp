@@ -180,12 +180,12 @@ def start_automl_step3_endpoint(
 
 @router.post(
     "/finalized_models/{finalized_model_id}/predict",
-    # --- CHANGED: Use the new JSON response schema ---
+    # --- Use the new JSON response schema ---
     response_model=schemas.PredictionResponse,
     summary="Predict from Uploaded CSV and Return Preview (Sync & Blocking)",
     status_code=status.HTTP_200_OK,
     responses={
-        # --- CHANGED: Describe the new JSON response ---
+        # --- Describe the new JSON response ---
         status.HTTP_200_OK: {
             "model": schemas.PredictionResponse,
             "description": "Returns a JSON object containing a preview (first 10 rows) of the predictions.",
@@ -294,8 +294,13 @@ async def predict_with_finalized_model_csv_endpoint( # Still async for file read
         # Catch unexpected errors during processing or preview generation
         print(f"FATAL: Unexpected error in CSV prediction endpoint for model {finalized_model_id}: {e}")
         # Ensure file is closed if error happened before service call finished
-        if file and not file.is_closed:
-             await file.close()
+        if file and hasattr(file, 'file') and not file.file.closed:
+            print(f"Closing file: {file.filename}")
+            await file.close()
+        elif file and hasattr(file, 'file') and file.file.closed:
+            print(f"File already closed: {file.filename}")
+        elif file:
+            print(f"File object {file.filename} exists but has no '.file' attribute?")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An unexpected internal error occurred during CSV prediction processing: {e}"

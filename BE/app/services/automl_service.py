@@ -35,6 +35,25 @@ except ImportError as e:
 
 # Core Config Import
 from app.core.config import settings
+import numpy as np
+
+def convert_numpy_types(obj):
+    """Recursively converts NumPy types in dicts/lists to standard Python types."""
+    if isinstance(obj, dict):
+        return {k: convert_numpy_types(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_types(elem) for elem in obj]
+    elif isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.bool_):
+        return bool(obj)
+    elif isinstance(obj, np.ndarray):
+         # If an ndarray somehow slipped through, convert it to list first
+         return convert_numpy_types(obj.tolist())
+    else:
+        return obj
 
 # --- Service Function for Step 1 ---
 def run_step1_setup_and_compare(db: Session, params: schemas.AutoMLSessionStartStep1Request) -> schemas.AutoMLSessionStep1Response:
@@ -339,9 +358,13 @@ def run_step2_tune_and_analyze(db: Session, session_id: int, params: schemas.Aut
         
         step2_results_dict = {}
         cv_metrics_table_schema = None # For storing the structured table
+        sanitized_data_list = None # To hold sanitized data for the response schema
 
         if final_step2_status == "completed":
-             step2_results_dict["best_params"] = best_params_dict
+             # --- Sanitize best_params before using anywhere ---
+             sanitized_best_params = convert_numpy_types(best_params_dict) # Sanitize best_params
+             
+             step2_results_dict["best_params"] = sanitized_best_params
              step2_results_dict["feature_importance_plot_path"] = feature_importance_plot_path
              # Convert CV results DataFrame to schema structure
              if isinstance(cv_results_df, pd.DataFrame) and not cv_results_df.empty:
@@ -358,14 +381,16 @@ def run_step2_tune_and_analyze(db: Session, session_id: int, params: schemas.Aut
                   except Exception as df_convert_e:
                       print(f"Warning: Could not convert CV results DataFrame to storable dict: {df_convert_e}")
                       step2_results_dict["cv_metrics_table_error"] = str(df_convert_e)
+                      
+        safe_results_for_db = convert_numpy_types(step2_results_dict)
         
         update_kwargs = {
-            "results": step2_results_dict, # Store placeholder or real results
+            "results": safe_results_for_db, # Store placeholder or real results
             "error": step2_error if final_step2_status == 'failed' else None,
             "step2_tuned_model_path_base": tuned_model_path_base,
             "step2_model_id_tuned": params.model_id_to_tune # Record which model was tuned this run
         }
-        update_kwargs = {k: v for k,v in update_kwargs.items()} # No need to filter None here? CRUD handles update
+        #update_kwargs = {k: v for k,v in update_kwargs.items()} # No need to filter None here? CRUD handles update
 
         # Use the step-specific update method
         db_session = crud_automl_session.update_step_status(
@@ -380,7 +405,8 @@ def run_step2_tune_and_analyze(db: Session, session_id: int, params: schemas.Aut
 
     except Exception as db_update_e:
         print(f"ERROR: Failed to update final step 2 status/results in DB for {session_id}: {db_update_e}")
-        raise HTTPException(status_code=500, detail="AutoML step 2 finished but failed to update session status in database.")
+        print(f"Original DB Error Type: {type(db_update_e).__name__}")
+        raise db_update_e # Re-raise the original DB error
 
     # 8. Prepare and Return Response
     if final_step2_status == "failed":
@@ -390,7 +416,7 @@ def run_step2_tune_and_analyze(db: Session, session_id: int, params: schemas.Aut
     response_data = {
         "tuned_model_id": params.model_id_to_tune, # Use the ID provided in the request
         "tuned_model_save_path_base": tuned_model_path_base,
-        "best_params": best_params_dict,
+        "best_params": sanitized_best_params if final_step2_status == "completed" else None,
         "cv_metrics_table": cv_metrics_table_schema, # Use the schema object created earlier
         "feature_importance_plot_path": feature_importance_plot_path,
     }
@@ -401,8 +427,8 @@ def run_step2_tune_and_analyze(db: Session, session_id: int, params: schemas.Aut
         return validated_response
     except Exception as validation_e:
         print(f"Error creating response for Step 2: {validation_e}")
-        # Fallback or raise internal error
-        raise HTTPException(status_code=500, detail="Failed to format Step 2 response.")
+        # Raise internal error if response creation fails even after sanitization
+        raise HTTPException(status_code=500, detail=f"Failed to format Step 2 response after sanitization: {validation_e}")
 
 def run_step3_finalize_and_save(db: Session, session_id: int, params: schemas.AutoMLSessionStartStep3Request) -> schemas.AutoMLSessionStep3Result:
     """
