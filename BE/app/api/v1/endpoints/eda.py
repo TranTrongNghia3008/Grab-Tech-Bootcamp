@@ -1,15 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-import pandas as pd # Explicitly import pandas, used by df.describe() and df.corr()
+import pandas as pd
 
 # Import database models and dependencies
 from app.api.v1.dependencies import get_db
-from app.db.models.datasets import Dataset # Assuming this is the correct path to your SQLAlchemy model
+from app.db.models.datasets import Dataset
 from app.utils.file_storage import load_csv_as_dataframe
 
 # --- API Router Setup ---
-# Create an API router instance specifically for Exploratory Data Analysis (EDA) endpoints.
-# All routes defined here will be prefixed with '/v1/datasets' and tagged as 'EDA' in OpenAPI docs.
 router = APIRouter(
     prefix='/v1/datasets',
     tags=['EDA']
@@ -22,91 +20,107 @@ def get_summary_statistics(dataset_id: int, db: Session = Depends(get_db)):
     """
     **Get Summary Statistics for a Dataset**
 
-    Calculates descriptive statistics for all columns (both numerical and categorical)
-    in the specified dataset. Uses pandas `describe(include='all')`.
+    Calculates and returns descriptive statistics for all columns in the specified dataset.
+
+    This endpoint performs the following actions sequentially:
+    1.  Queries the database to find the `Dataset` record corresponding to the provided `dataset_id`.
+    2.  Validates that a dataset record was found. If not, raises a 404 error.
+    3.  Retrieves the `file_path` from the found dataset record.
+    4.  Loads the dataset from the CSV file specified by `file_path` into a pandas DataFrame using `load_csv_as_dataframe`.
+    5.  Calculates descriptive statistics for all columns (numeric and categorical) using `df.describe(include='all')`.
+    6.  Replaces any `NaN` values in the resulting statistics DataFrame with empty strings (`''`) using `.fillna('')`.
+    7.  Converts the statistics DataFrame into a dictionary format suitable for JSON response using `.to_dict()`.
+    8.  Returns the dictionary containing the summary statistics.
 
     Args:
         `dataset_id` (int): The unique identifier of the dataset.
-        `db` (Session): **Dependency:** Database session managed by FastAPI.
+        `db` (Session): **Dependency:** Injected database session.
 
     Raises:
         `HTTPException`:
-            - `404` (Not Found): If a dataset with the specified `dataset_id` does not exist.
-            - (Implicit via `load_csv_as_dataframe`): If the dataset file associated with
-              the `dataset_id` cannot be found or loaded.
+            - `404`: If no dataset record is found for the given `dataset_id`.
+            - Potentially (from `load_csv_as_dataframe`): If the dataset file cannot be found or loaded.
 
     Returns:
-        `dict`: A dictionary representation of the pandas DataFrame containing summary statistics.
-                NaN values in the statistics DataFrame are replaced with empty strings (`''`)
-                for better JSON compatibility.
+        `dict`: A dictionary representing the summary statistics, with NaN values replaced by empty strings.
     """
-    # 1. **Retrieve Dataset Record**: Fetch the dataset metadata from the database using its ID.
+    # 1. Retrieve Dataset Record
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
 
-    # 2. **Validate Dataset Existence**: If no record is found, raise a 404 error.
+    # 2. Validate Dataset Existence
     if not dataset:
         raise HTTPException(status_code=404, detail='Dataset not found')
 
-    # 3. **Load Dataset Data**: Load the actual data from the CSV file path stored in the dataset record.
-    #    `load_csv_as_dataframe` is expected to handle potential file loading errors.
+    # 3. Get file path (implicit in dataset object)
+    # 4. Load Dataset Data
     df = load_csv_as_dataframe(dataset.file_path)
 
-    # 4. **Calculate Summary Statistics**: Use pandas `describe(include='all')` to get statistics
-    #    for all columns (numeric types get count, mean, std, min, quantiles, max;
-    #    object/categorical types get count, unique, top, freq).
+    # 5. Calculate Summary Statistics
     stats_df = df.describe(include='all')
 
-    # 5. **Format and Return**: Convert the resulting statistics DataFrame to a dictionary.
-    #    Replace any remaining NaN values (common in describe output) with empty strings
-    #    to avoid potential issues with JSON serialization (though `to_dict` often handles this).
-    return stats_df.fillna('').to_dict()
+    # 6. Format NaN values
+    stats_df_filled = stats_df.fillna('')
+
+    # 7. Convert to Dictionary
+    stats_dict = stats_df_filled.to_dict()
+
+    # 8. Return Dictionary
+    return stats_dict
 
 
 @router.get('/{dataset_id}/eda/corr')
 def get_correlation_matrix(dataset_id: int, db: Session = Depends(get_db)):
     """
-    **Get Correlation Matrix for a Dataset**
+    **Get Correlation Matrix for Numeric Columns in a Dataset**
 
-    Calculates the pairwise correlation matrix (e.g., Pearson correlation) for all
-    *numeric* columns in the specified dataset.
+    Calculates and returns the pairwise correlation matrix for all numeric columns
+    in the specified dataset.
+
+    This endpoint performs the following actions sequentially:
+    1.  Queries the database to find the `Dataset` record corresponding to the provided `dataset_id`.
+    2.  Validates that a dataset record was found. If not, raises a 404 error.
+    3.  Retrieves the `file_path` from the found dataset record.
+    4.  Loads the dataset from the CSV file specified by `file_path` into a pandas DataFrame using `load_csv_as_dataframe`.
+    5.  Selects only the columns with numeric data types from the DataFrame using `df.select_dtypes(include='number')`.
+    6.  Calculates the pairwise correlation matrix (default: Pearson) for the numeric columns using `.corr()`.
+    7.  Replaces any `NaN` values in the resulting correlation matrix with `0` using `.fillna(0)`. (NaNs can occur for columns with zero variance).
+    8.  Converts the correlation matrix DataFrame into a dictionary format suitable for JSON response using `.to_dict()`.
+    9.  Returns the dictionary containing the correlation matrix.
 
     Args:
         `dataset_id` (int): The unique identifier of the dataset.
-        `db` (Session): **Dependency:** Database session managed by FastAPI.
+        `db` (Session): **Dependency:** Injected database session.
 
     Raises:
         `HTTPException`:
-            - `404` (Not Found): If a dataset with the specified `dataset_id` does not exist.
-            - (Implicit via `load_csv_as_dataframe`): If the dataset file associated with
-              the `dataset_id` cannot be found or loaded.
+            - `404`: If no dataset record is found for the given `dataset_id`.
+            - Potentially (from `load_csv_as_dataframe`): If the dataset file cannot be found or loaded.
 
     Returns:
-        `dict`: A dictionary representation of the pandas DataFrame containing the
-                correlation matrix. NaN values in the matrix (e.g., if a column has zero variance)
-                are replaced with `0`.
+        `dict`: A dictionary representing the correlation matrix for numeric columns, with NaN values replaced by 0.
     """
-    # 1. **Retrieve Dataset Record**: Fetch the dataset metadata from the database.
+    # 1. Retrieve Dataset Record
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
 
-    # 2. **Validate Dataset Existence**: Raise 404 if not found.
+    # 2. Validate Dataset Existence
     if not dataset:
-        # Typo in original code ('details='), corrected to 'detail='
-        raise HTTPException(status_code=404, detail='Dataset not found')
+        raise HTTPException(status_code=404, detail='Dataset not found') # Corrected 'details' typo
 
-    # 3. **Load Dataset Data**: Load the data from the CSV file.
+    # 3. Get file path (implicit)
+    # 4. Load Dataset Data
     df = load_csv_as_dataframe(dataset.file_path)
 
-    # 4. **Select Numeric Columns**: Filter the DataFrame to include only columns with numeric data types,
-    #    as correlation is typically calculated only for these.
+    # 5. Select Numeric Columns
     numeric_df = df.select_dtypes(include='number')
 
-    # 5. **Calculate Correlation Matrix**: Compute the pairwise correlation between numeric columns.
-    #    The default method for pandas `.corr()` is usually Pearson.
+    # 6. Calculate Correlation Matrix
     corr_matrix = numeric_df.corr()
 
-    # 6. **Handle NaN Values**: Replace any NaN values in the resulting correlation matrix with 0.
-    #    NaNs can occur if a column has constant values (zero standard deviation).
+    # 7. Handle NaN Values
     corr_matrix_filled = corr_matrix.fillna(0)
 
-    # 7. **Format and Return**: Convert the correlation matrix DataFrame to a dictionary for the JSON response.
-    return corr_matrix_filled.to_dict()
+    # 8. Convert to Dictionary
+    corr_dict = corr_matrix_filled.to_dict()
+
+    # 9. Return Dictionary
+    return corr_dict
