@@ -451,8 +451,6 @@ class AutoMLRunner:
 
     # --- Feature Functions ---
     # set up necessary environment for AutoML and Pycaret for AUTOML PIPELINE
-    
-    
     def setup_automl_environment(self, data_path: str, target_column: str, feature_columns: Optional[List[str]] = None) -> Tuple[bool, Optional[str]]:
         """
         Loads data, validates, detects task type, profiles data (optional),
