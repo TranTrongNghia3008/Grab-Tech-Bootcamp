@@ -1,6 +1,9 @@
 import os
 from pathlib import Path
 import pandas as pd
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Base directory for storing CSVs/Datasets
 STORAGE_DIR = Path(os.getenv('DATA_STORAGE_DIR', 'data'))

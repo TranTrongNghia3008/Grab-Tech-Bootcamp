@@ -9,7 +9,7 @@ feature_columns: ['FeatureA', 'FeatureB', 'FeatureC'] # Optional: List of specif
 
 session_id: 123                      # Determines the output sub-folder name (e.g., automl_outputs/automl_123)
 experiment_name: 'automl_bigdata_exp'  # MLflow Experiment Name
-output_base_dir: './automl_outputs'    # BASE directory where session folders will be created
+output_base_dir: '../FE/automation-data-analysts/public/automl_outputs'    # BASE directory where session folders will be created
 mlflow_tracking_uri: "sqlite:///mlflow_bigdata.db" # MLflow backend (local file or server URI like http://...)
 
 # --- Task Detection ---
