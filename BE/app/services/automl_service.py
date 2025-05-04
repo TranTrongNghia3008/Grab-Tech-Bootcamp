@@ -722,6 +722,9 @@ async def run_prediction_from_csv(db: Session, finalized_model_id: int, uploaded
 
         print(f"Running prediction via CSV upload using model: {model_base_path}")
 
+        if runner_config['target_column'] in predict_df.columns:
+            predict_df = predict_df.drop(columns=[runner_config['target_column']])
+        
         # --- BLOCKING CALL to predict method ---
         prediction_result_df = runner.predict_on_new_data(
             new_data=predict_df,

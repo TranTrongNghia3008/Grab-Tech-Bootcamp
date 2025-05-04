@@ -7,3 +7,5 @@ migrations/
 .ini
 .db
 .csv
+*.db
+*.log

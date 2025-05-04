@@ -82,7 +82,7 @@ mlflow_registered_model_name: "AutoML_BigData_Model" # Name for the model in the
 mlflow_model_stage: "Staging"      # Initial stage in registry ('Staging', 'Production', 'Archived') (if registered)
 
 # --- Prediction Settings ---
-enable_drift_check_on_predict: false # Run Evidently data drift check before prediction? (Requires evidently)
+enable_drift_check_on_predict: true # Run Evidently data drift check before prediction? (Requires evidently)
 halt_prediction_on_drift: false    # If true, stop predict_on_new_data if drift is detected
 drift_report_name: "prediction_drift_report.html" # Filename for drift report (if enabled)
 enable_prediction_explanation: false # Enable the explain_prediction method using SHAP? (Requires shap)

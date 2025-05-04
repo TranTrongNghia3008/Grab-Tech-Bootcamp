@@ -17,6 +17,9 @@ from typing import List, Optional, Dict, Any, Tuple, Union
 import pycaret # Keep for version check if needed elsewhere
 import inspect # Needed for _log_plot_artifact
 import matplotlib.pyplot as plt # Needed for _log_plot_artifact workaround
+from io import StringIO
+import json
+
 
 try:
     from ydata_profiling import ProfileReport
@@ -92,7 +95,7 @@ def load_config(config_path: str = DEFAULT_CONFIG_PATH) -> Dict[str, Any]:
 
         config.setdefault('run_data_profiling', False)
         config.setdefault('profile_report_name', "data_profile_report.html")
-        config.setdefault('enable_drift_check_on_predict', False)
+        config.setdefault('enable_drift_check_on_predict', True)
         config.setdefault('drift_report_name', "prediction_drift_report.html")
         config.setdefault('generate_model_card', False)
         config.setdefault('register_model_in_mlflow', False)
@@ -1197,9 +1200,10 @@ class AutoMLRunner:
                  mlflow.log_param("mlflow_registration_error", f"{type(e).__name__}: {str(e)[:500]}")
             return False
 
-    # --- _check_data_drift (Adopted from Code 2) ---
+    # --- _check_data_drift ---
     def _check_data_drift(self, new_data: pd.DataFrame, report_save_name: Optional[str] = None) -> Optional[Dict]:
         """Checks for data drift between new data and the training data."""
+        self.train_data = pd.read_csv(self.config['data_file_path']).drop(columns=[self.config['target_column']])
         if Report is None or DataDriftPreset is None:
             logger.error("Evidently library not installed. Cannot perform drift check.")
             return None
@@ -1263,18 +1267,18 @@ class AutoMLRunner:
             # --- Run Evidently Report ---
             logger.info(f"Running Evidently DataDriftPreset on {len(common_cols)} common columns...")
             drift_report = Report(metrics=[DataDriftPreset()])
-            drift_report.run(current_data=current_data, reference_data=reference_data, column_mapping=None) # Auto maps columns
+            drift_report = drift_report.run(current_data=current_data, reference_data=reference_data) # Auto maps columns
+            
+            # drift_results = drift_report.dict()
+            # drift_detected = drift_results['metrics'][0]['result']['dataset_drift']
+            # num_drifted_features = drift_results['metrics'][0]['result']['number_of_drifted_columns']
 
-            drift_results = drift_report.as_dict()
-            drift_detected = drift_results['metrics'][0]['result']['dataset_drift']
-            num_drifted_features = drift_results['metrics'][0]['result']['number_of_drifted_columns']
-
-            logger.info(f"Data drift detected: {drift_detected}")
-            logger.info(f"Number of drifted features: {num_drifted_features}")
-            if is_run_active:
-                mlflow.log_metric("data_drift_detected_flag", int(drift_detected))
-                mlflow.log_metric("data_drift_num_drifted_features", num_drifted_features)
-                mlflow.set_tag("drift_check_status", "completed")
+            # logger.info(f"Data drift detected: {drift_detected}")
+            # logger.info(f"Number of drifted features: {num_drifted_features}")
+            # if is_run_active:
+            #     mlflow.log_metric("data_drift_detected_flag", int(drift_detected))
+            #     mlflow.log_metric("data_drift_num_drifted_features", num_drifted_features)
+            #     mlflow.set_tag("drift_check_status", "completed")
 
             # --- Save and log report ---
             report_file = report_save_name or self.config.get("drift_report_name", "drift_report.html")
@@ -1289,12 +1293,12 @@ class AutoMLRunner:
             except Exception as save_e:
                  logger.error(f"Failed to save drift report to {full_report_path}: {save_e}")
 
-            return {
-                "drift_detected": drift_detected,
-                "num_drifted_features": num_drifted_features,
-                "report_path": full_report_path,
-                "metrics_details": drift_results['metrics'] # Return detailed metrics if needed
-            }
+            # return {
+            #     "drift_detected": drift_detected,
+            #     "num_drifted_features": num_drifted_features,
+            #     "report_path": full_report_path,
+            #     "metrics_details": drift_results['metrics'] # Return detailed metrics if needed
+            # }
 
         except Exception as e:
             logger.error(f"Data drift check failed: {e}", exc_info=True)
@@ -2087,7 +2091,7 @@ class AutoMLRunner:
         logger.info(f"Using prediction module: {pred_module.__name__}")
 
         # --- Data Drift Check ---
-        if self.config.get("enable_drift_check_on_predict", False):
+        if self.config.get("enable_drift_check_on_predict", True):
              logger.info("Performing data drift check before prediction...")
              # Ensure self.train_data is available (should be set in step 1)
              drift_results = self._check_data_drift(new_data=new_data.copy()) # Pass copy
