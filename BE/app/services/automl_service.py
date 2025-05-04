@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from typing import Dict, Any, Callable, Tuple, Optional
 import pandas as pd
 import io
+from app.utils.file_storage import get_cleaned_df_path
 
 # CRUD Imports
 from app.crud.automl_sessions import crud_automl_session # Use updated session CRUD
@@ -76,7 +77,7 @@ def run_step1_setup_and_compare(db: Session, params: schemas.AutoMLSessionStartS
     if not dataset or not dataset.file_path:
         # Session record doesn't exist yet, so just raise error
         raise HTTPException(status_code=404, detail=f"Dataset with ID {params.dataset_id} not found or has no file path.")
-    dataset_file_path = dataset.file_path
+    dataset_file_path = get_cleaned_df_path(dataset.file_path)
 
     # 2. Create Initial Session Record in DB
     # We use the base create method first
@@ -307,7 +308,7 @@ def run_step2_tune_and_analyze(db: Session, session_id: int, params: schemas.Aut
         # Ensure essential IDs and paths are present
         runner_config['session_id'] = session_id
         runner_config['task_type'] = db_session.task_type # Crucial for loading experiment
-        runner_config['data_file_path'] = dataset.file_path # Fallback, but should be in config
+        runner_config['data_file_path'] = get_cleaned_df_path(dataset.file_path) # Fallback, but should be in config
 
         # Apply any specific overrides from the request if needed
         # runner_config.update(params.tune_config_overrides or {}) # Example
@@ -492,7 +493,7 @@ def run_step3_finalize_and_save(db: Session, session_id: int, params: schemas.Au
         dataset = crud_dataset.get(db, id=db_session.dataset_id)
         if not dataset or not dataset.file_path:
              raise ValueError(f"Original Dataset {db_session.dataset_id} path could not be retrieved for finalize step.")
-        dataset_file_path = dataset.file_path
+        dataset_file_path = get_cleaned_df_path(dataset.file_path)
 
         base_config = load_config()
         runner_config = base_config.copy()
