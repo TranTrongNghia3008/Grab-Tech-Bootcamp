@@ -6,7 +6,7 @@ from app.db.base import Base
 class CleaningJob(Base):
     __tablename__ = 'cleaning_jobs'
     
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     dataset_id = Column(Integer, ForeignKey("datasets.id"), nullable=False)
     status = Column(String, default="pending", nullable=False) # 'pending', 'running', 'completed', 'failed' 
     config = Column(JSON, nullable=False)
