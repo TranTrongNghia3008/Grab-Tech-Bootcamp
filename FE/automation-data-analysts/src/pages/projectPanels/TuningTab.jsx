@@ -6,7 +6,7 @@ import DataTable from "../../components/DataTable";
 import AnalyzeModel from "./AnalyzeModel";
 import { finalizeModel, tuningSession } from "../../components/services/modelingServices";
 
-export default function TuningTab({ sessionId, bestModelId, comparisonResults = [], setIsFinalized }) {
+export default function TuningTab({ sessionId, bestModelId, comparisonResults = [], setIsFinalized, setFinalizedModelId }) {
   const [modelType, setModelType] = useState("");
   const [customGrid, setCustomGrid] = useState("");
   const [loading, setLoading] = useState(false);
@@ -17,6 +17,8 @@ export default function TuningTab({ sessionId, bestModelId, comparisonResults = 
   const [showErrors, setShowErrors] = useState(false);
   const [availableModels, setAvailableModels] = useState([]);
   const [isloadingFinalized, setIsLoadingFinalized] = useState(false);
+  const [tunedModelPath, setTunedModelPath] = useState(null);
+  const [ tunedFeatureImportancePlotPath, setTunedFeatureImportancePlotPath] = useState(null);
   
   const modelOptions = Array.isArray(comparisonResults)
   ? comparisonResults.map((model) => ({
@@ -47,6 +49,9 @@ export default function TuningTab({ sessionId, bestModelId, comparisonResults = 
       setJobStatus("running");
       const tuneResults = await tuningSession(sessionId, modelType);
       console.log("Tuning results:", tuneResults);
+
+      setTunedModelPath(tuneResults.tuned_model_save_path_base);
+      setTunedFeatureImportancePlotPath(tuneResults.feature_importance_plot_path);
   
       // Set best parameters
       setBestParams(tuneResults.best_params || {});
@@ -95,19 +100,27 @@ export default function TuningTab({ sessionId, bestModelId, comparisonResults = 
   };
   
   const handleDownloadModel = () => {
-    const blob = new Blob(["This is your tuned model (.pkl)"], { type: "application/octet-stream" });
-    const url = URL.createObjectURL(blob);
+    const formattedPath = tunedModelPath
+      .replace(/\\/g, "/") // convert Windows \ to /
+      .replace("../FE/automation-data-analysts/public", "");
+  
+    // Assume file is model.pkl inside that directory
+    const downloadUrl = `${formattedPath}.pkl`;
+  
+    // Trigger download
     const a = document.createElement("a");
-    a.href = url;
+    a.href = downloadUrl;
     a.download = "tuned_model.pkl";
     a.click();
-    URL.revokeObjectURL(url);
   };
+  
   
   const handleFinalizeModel = async () => {
     try {
       setIsLoadingFinalized(true);
-      await finalizeModel(sessionId, modelType);
+      const finalizeResults = await finalizeModel(sessionId, modelType);
+      console.log("Finalize results:", finalizeResults);
+      setFinalizedModelId(finalizeResults.finalized_model_db_id);
       setIsFinalized(true);
     } catch (error) {
       console.error("Failed to finalize model:", error);
@@ -203,7 +216,7 @@ export default function TuningTab({ sessionId, bestModelId, comparisonResults = 
 
       {/* Analyze Model */}
       {jobStatus === "done" && (
-        <AnalyzeModel availableModels={availableModels} sessionId={sessionId}/>
+        <AnalyzeModel availableModels={availableModels} sessionId={sessionId} imgPath={tunedFeatureImportancePlotPath}/>
       )}
 
       {/* Download Model */}

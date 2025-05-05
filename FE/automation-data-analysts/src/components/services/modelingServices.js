@@ -34,3 +34,13 @@ export function finalizeModel(sessionId, modelType) {
         body: payload,
     });
 }
+
+export function predictModel(finalizedModelId, file) {
+    console.log("predictModel", finalizedModelId, file);
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiClient(`/v1/finalized_models/${finalizedModelId}/predict`, {
+        method: "POST",
+        body: formData,
+    });
+}

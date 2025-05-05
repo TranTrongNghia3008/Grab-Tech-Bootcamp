@@ -14,6 +14,7 @@ export default function ModelingPanel() {
   const [selectedFeatures, setSelectedFeatures] = useState([]);
   const [activeTab, setActiveTab] = useState("Baseline");
   const [isFinalized, setIsFinalized] = useState(false);
+  const [finalizedModelId, setFinalizedModelId] = useState(null);
 
   console.log("ModelingPanel - datasetId:", datasetId);
   console.log("ModelingPanel - sessionId:", sessionId);
@@ -124,8 +125,8 @@ export default function ModelingPanel() {
 
         {/* Tab content */}
         {activeTab === "Baseline" && <BaselineTab comparisonResults={formattedComparisonResults} sessionId={sessionId}/>}
-        {activeTab === "Tuning" && <TuningTab sessionId={sessionId} bestModelId={bestModelId} comparisonResults={formattedComparisonResults} setIsFinalized={setIsFinalized}/>}
-        {activeTab === "Prediction" && <PredictionTab />}
+        {activeTab === "Tuning" && <TuningTab sessionId={sessionId} bestModelId={bestModelId} comparisonResults={formattedComparisonResults} setIsFinalized={setIsFinalized} setFinalizedModelId={setFinalizedModelId}/>}
+        {activeTab === "Prediction" && <PredictionTab finalizedModelId={finalizedModelId} />}
       </div>
 
     </div>

@@ -3,7 +3,7 @@ import { TbAnalyzeFilled } from "react-icons/tb";
 import { Loader2 } from "lucide-react";
 import { Card } from "../../components/ui";
 
-export default function AnalyzeModel({ availableModels = [], sessionId = 1 }) {
+export default function AnalyzeModel({ availableModels = [], sessionId = 1, imgPath = "" }) {
   console.log("Available models:", availableModels);
   const [selectedModelId, setSelectedModelId] = useState("");
   const [modelDetails, setModelDetails] = useState(null);
@@ -21,7 +21,12 @@ export default function AnalyzeModel({ availableModels = [], sessionId = 1 }) {
     }
 
     // Dựng đường dẫn ảnh
-    const imagePath = `/automl_outputs/automl_${sessionId}/plots/baseline_${modelId}_Feature_Importance.png`
+    let imagePath = `/automl_outputs/automl_${sessionId}/plots/baseline_${modelId}_Feature_Importance.png`
+    if (imgPath) {
+      imagePath = imgPath
+      .replace(/\\/g, "/") // convert Windows \ to /
+      .replace("../FE/automation-data-analysts/public", "");
+    }
 
     // Giả lập lấy metrics (có thể map lại tùy ý)
     const metrics = Object.entries(selectedModel)

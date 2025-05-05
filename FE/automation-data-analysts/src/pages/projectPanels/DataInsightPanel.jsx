@@ -5,13 +5,13 @@ import { FaChartBar, FaProjectDiagram } from "react-icons/fa";
 import { FiBarChart2, FiFileText } from "react-icons/fi";
 import { Loader2 } from "lucide-react";
 import ChartGeneration from "./ChartGeneration";
-// import { useAppContext } from "../../contexts/AppContext";
+import { useAppContext } from "../../contexts/AppContext";
 import { getCorrelation, getSummaryStatistics } from "../../components/services/EDAServices";
 
 export default function DataInsightPanel() {
-  // const { state } = useAppContext(); 
-  // const { datasetId } = state;
-  const datasetId = 13; // Thay thế bằng datasetId thực tế từ context hoặc props
+  const { state } = useAppContext(); 
+  const { datasetId } = state;
+  // const datasetId = 13; // Thay thế bằng datasetId thực tế từ context hoặc props
 
   const [stats, setStats] = useState(null);
   const [corr, setCorr] = useState(null);
@@ -220,7 +220,7 @@ export default function DataInsightPanel() {
 
       
       {/* Chart Generation */}
-      {/* <ChartGeneration/> */}
+      <ChartGeneration/>
 
       {/* EDA Reports Section */}
       <Card>
