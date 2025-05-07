@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     
     data_storage_dir: str = 'data'
     GOOGLE_API_KEY: str
+    OPENAI_API_KEY: str
     
     class Config:
         env_file = '.env'
