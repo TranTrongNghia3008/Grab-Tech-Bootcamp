@@ -1,12 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FaCogs, FaCalculator, FaDownload } from "react-icons/fa";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { Card, Button } from "../../components/ui";
 import DataTable from "../../components/DataTable";
 import AnalyzeModel from "./AnalyzeModel";
 import { finalizeModel, tuningSession } from "../../components/services/modelingServices";
+import { useAppContext } from "../../contexts/AppContext";
 
 export default function TuningTab({ sessionId, bestModelId, comparisonResults = [], setIsFinalized, setFinalizedModelId }) {
+  const { state, updateState } = useAppContext();
+  const { tuningResults } = state;
   const [modelType, setModelType] = useState("");
   const [customGrid, setCustomGrid] = useState("");
   const [loading, setLoading] = useState(false);
@@ -19,6 +22,56 @@ export default function TuningTab({ sessionId, bestModelId, comparisonResults = 
   const [isloadingFinalized, setIsLoadingFinalized] = useState(false);
   const [tunedModelPath, setTunedModelPath] = useState(null);
   const [ tunedFeatureImportancePlotPath, setTunedFeatureImportancePlotPath] = useState(null);
+
+  useEffect(() => {
+    if (tuningResults) {
+      console.log("Tuning Results from state:", tuningResults);
+      processTuningResults(tuningResults)
+    }
+  }, [tuningResults]);
+
+  const processTuningResults = (tuneResults) => {
+    setTunedModelPath(tuneResults.tuned_model_save_path_base);
+    setTunedFeatureImportancePlotPath(tuneResults.feature_importance_plot_path);
+  
+    // Set best parameters
+    setBestParams(tuneResults.best_params || {});
+  
+    // Format CV metrics
+    const columns = tuneResults.cv_metrics_table.columns;
+    const rows = tuneResults.cv_metrics_table.data;
+  
+    const formattedMetrics = rows.map((row) => {
+      const rowObj = {};
+      columns.forEach((col, i) => {
+        rowObj[col] = typeof row[i] === "number" ? Number(row[i].toFixed(4)) : row[i];
+      });
+      return rowObj;
+    });
+  
+    setCvMetrics(formattedMetrics);
+  
+    const meanRow = formattedMetrics.find((item) => item.Fold === "Mean");
+  
+    if (meanRow) {
+      const dynamicMetrics = Object.entries(meanRow)
+        .filter(([key]) => key !== "Fold")
+        .map(([key, value]) => ({ [key]: value }));
+  
+      // Chuyển về 1 object thay vì mảng các object đơn
+      const mergedMetrics = Object.assign({}, ...dynamicMetrics);
+  
+      setAvailableModels([
+        {
+          index: tuneResults.tuned_model_id,
+          Model: "Your Tuned Model",
+          ...mergedMetrics,
+        },
+      ]);
+    }
+    setJobStatus("done");
+  };
+  
   
   const modelOptions = Array.isArray(comparisonResults)
   ? comparisonResults.map((model) => ({
@@ -49,48 +102,9 @@ export default function TuningTab({ sessionId, bestModelId, comparisonResults = 
       setJobStatus("running");
       const tuneResults = await tuningSession(sessionId, modelType);
       console.log("Tuning results:", tuneResults);
+      updateState({tuningResults: tuneResults})
 
-      setTunedModelPath(tuneResults.tuned_model_save_path_base);
-      setTunedFeatureImportancePlotPath(tuneResults.feature_importance_plot_path);
-  
-      // Set best parameters
-      setBestParams(tuneResults.best_params || {});
-  
-      // Format CV metrics
-      const columns = tuneResults.cv_metrics_table.columns;
-      const rows = tuneResults.cv_metrics_table.data;
-  
-      const formattedMetrics = rows.map((row) => {
-        const rowObj = {};
-        columns.forEach((col, i) => {
-          rowObj[col] = typeof row[i] === "number" ? Number(row[i].toFixed(4)) : row[i];
-        });
-        return rowObj;
-      });
-  
-      setCvMetrics(formattedMetrics);
-
-      const meanRow = formattedMetrics.find((item) => item.Fold === "Mean");
-
-      if (meanRow) {
-        const dynamicMetrics = Object.entries(meanRow)
-          .filter(([key]) => key !== "Fold")
-          .map(([key, value]) => ({ [key]: value }));
-
-        // Chuyển về 1 object thay vì mảng các object đơn
-        const mergedMetrics = Object.assign({}, ...dynamicMetrics);
-
-        setAvailableModels([
-          {
-            index: tuneResults.tuned_model_id,
-            Model: "Your Tuned Model",
-            ...mergedMetrics,
-          },
-        ]);
-      }
-  
-  
-      setJobStatus("done");
+      processTuningResults(tuneResults)
     } catch (error) {
       console.error("Tuning failed:", error);
       setJobStatus("error");
@@ -147,7 +161,7 @@ export default function TuningTab({ sessionId, bestModelId, comparisonResults = 
               onChange={(e) => setModelType(e.target.value)}
               className="w-full border border-gray-300 rounded-md px-3 py-2 my-0 focus:outline-none focus:ring-2 focus:ring-green-500"
             >
-              <option value="">Select Model</option>
+              <option value="">Select model for tuning...</option>
               {modelOptions.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name}
@@ -223,7 +237,7 @@ export default function TuningTab({ sessionId, bestModelId, comparisonResults = 
       {jobStatus === "done" && (
         <div className="flex justify-end gap-4">
           <Button onClick={handleDownloadModel}>
-            <FaDownload className="mr-2" /> Download Model (.pkl)
+            <FaDownload className="mr-2" /> Download tuned model
           </Button>
           <Button variant="outline" onClick={handleFinalizeModel} disabled={isloadingFinalized}>
             {isloadingFinalized ? "Finalizing..." : "Finalize Model"}

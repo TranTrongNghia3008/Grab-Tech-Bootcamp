@@ -24,10 +24,12 @@ export default function DataInsightPanel() {
       try {
         // Gọi API thống kê tổng quan
         const statsRes = await getSummaryStatistics(datasetId);
+        console.log("Summary Statistics: ", statsRes)
         const transformedData = Object.entries(statsRes).map(([key, value]) => ({
-          column: key,
-          ...value
-      }));
+            column: key,
+            ...value
+        }));
+        console.log(transformedData)
         setStats(transformedData);
   
         // Gọi API correlation

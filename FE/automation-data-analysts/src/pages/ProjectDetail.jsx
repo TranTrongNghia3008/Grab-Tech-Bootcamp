@@ -65,9 +65,9 @@ export default function ProjectDetail() {
                   key={tab.label}
                   onClick={() => handleTabClick(tab.label)}
                   disabled={isDisabled}
-                  className={`flex items-center px-4 py-2 mx-1 rounded-lg text-sm font-medium whitespace-nowrap transition hover:cursor-pointer
-                    ${activeTab === tab.label ? "bg-[#00843D] text-white shadow" : ""}
-                    ${isDisabled ? "opacity-50 cursor-not-allowed" : "text-[#1B1F1D] hover:bg-[#CDEBD5]"}
+                  className={`flex items-center px-4 py-2 mx-1 rounded-lg text-sm font-medium whitespace-nowrap transition
+                    ${activeTab === tab.label ? "bg-[#00843D] text-white shadow hover:cursor-pointer" : ""}
+                    ${isDisabled ? "opacity-50 cursor-not-allowed" : "text-[#1B1F1D] hover:bg-[#CDEBD5] hover:cursor-pointer"}
                   `}
                 >
                   {tab.icon}

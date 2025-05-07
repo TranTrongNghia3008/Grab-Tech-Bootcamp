@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { FaBullseye, FaWrench } from "react-icons/fa";
+import { Tooltip } from 'react-tooltip';
 import { Card } from "../../components/ui";
 import BaselineTab from "./BaselineTab";
 import TuningTab from "./TuningTab";
@@ -100,6 +101,12 @@ export default function ModelingPanel() {
           {["Baseline", "Tuning", "Prediction"].map((tab) => {
             const isDisabled = tab === "Prediction" && !isFinalized;
 
+            const tooltipText = {
+              Baseline: "View baseline models and evaluation metrics.",
+              Tuning: "Adjust hyperparameters and optimize the best model.",
+              Prediction: "Use the finalized model to make predictions."
+            }[tab];
+
             return (
               <button
                 key={tab}
@@ -114,17 +121,19 @@ export default function ModelingPanel() {
                   }
                   ${isDisabled ? "text-gray-400 cursor-not-allowed" : ""}
                 `}
-                title={isDisabled ? "Please finalize tuning before predicting." : ""}
+                data-tooltip-id="tab-tooltip"
+                data-tooltip-content={tooltipText}
               >
                 {tab}
               </button>
             );
           })}
+          <Tooltip id="tab-tooltip" place="top-end" />
         </div>
 
 
         {/* Tab content */}
-        {activeTab === "Baseline" && <BaselineTab comparisonResults={formattedComparisonResults} sessionId={sessionId}/>}
+        {activeTab === "Baseline" && <BaselineTab comparisonResults={formattedComparisonResults} sessionId={sessionId} bestModel={bestModel}/>}
         {activeTab === "Tuning" && <TuningTab sessionId={sessionId} bestModelId={bestModelId} comparisonResults={formattedComparisonResults} setIsFinalized={setIsFinalized} setFinalizedModelId={setFinalizedModelId}/>}
         {activeTab === "Prediction" && <PredictionTab finalizedModelId={finalizedModelId} />}
       </div>

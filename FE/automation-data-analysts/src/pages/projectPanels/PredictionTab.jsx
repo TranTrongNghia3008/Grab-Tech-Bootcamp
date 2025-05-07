@@ -1,15 +1,40 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FaMagic, FaDownload, FaChartLine } from "react-icons/fa"; // Import thêm FaChartLine
 import { Button, Card } from "../../components/ui";
 import DataTable from "../../components/DataTable";
 import UploadDropzone from "../../components/UploadDropzone"; 
 import { predictModel } from "../../components/services/modelingServices";
+import { useAppContext } from "../../contexts/AppContext";
 
 export default function PredictionTab({ finalizedModelId }) {
+  const { state, updateState } = useAppContext();
+  const { predictedResults } = state;
   const [uploadedFile, setUploadedFile] = useState(null);
   const [predictedData, setPredictedData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [predictResults, setPredictResults] = useState(null); 
+
+  useEffect(() => {
+      if (predictedResults) {
+        console.log("Predicted Results from state:", predictedResults);
+        processPredictResults(predictedResults)
+      }
+    }, [predictedResults]);
+
+  const processPredictResults = (predictResults) => {
+    setPredictResults(predictResults); 
+    const { columns, data: rows } = predictResults.preview_predictions;
+    const formattedData = rows.map((row) => {
+      const rowObj = {};
+      columns.forEach((col, i) => {
+        rowObj[col] = row[i];
+      });
+      return rowObj;
+    });
+
+    setPredictedData(formattedData);
+  }
+
   const handleFileAccepted = (file) => {
     setUploadedFile(file);
     setPredictedData([]); 
@@ -25,20 +50,10 @@ export default function PredictionTab({ finalizedModelId }) {
   
     try {
       const predictResults = await predictModel(finalizedModelId, uploadedFile);
-      setPredictResults(predictResults); 
       console.log("Predict results:", predictResults);
-  
-      // Chuyển từ columns + data => array of objects
-      const { columns, data: rows } = predictResults.preview_predictions;
-      const formattedData = rows.map((row) => {
-        const rowObj = {};
-        columns.forEach((col, i) => {
-          rowObj[col] = row[i];
-        });
-        return rowObj;
-      });
-  
-      setPredictedData(formattedData);
+      updateState({predictedResults: predictResults})
+      processPredictResults(predictResults)
+      setUploadedFile(false)
     } catch (error) {
       console.error("Prediction failed:", error);
       alert("Prediction failed. Check console for details.");
@@ -118,7 +133,7 @@ export default function PredictionTab({ finalizedModelId }) {
 
           <div className="flex justify-end gap-4">
             <Button onClick={handleDownloadPredicted}>
-              <FaDownload className="mr-2" /> Download Predicted CSV
+              <FaDownload className="mr-2" /> Download Predicted Data
             </Button>
 
             <Button variant="outline" onClick={handleViewDriftReport}>

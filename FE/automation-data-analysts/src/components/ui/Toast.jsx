@@ -1,6 +1,6 @@
 export default function Toast({ type = "info", message }) {
     const base =
-      "fixed bottom-4 right-4 z-50 px-4 py-3 rounded shadow-lg text-sm font-medium";
+      "fixed bottom-4 right-4 z-100 px-4 py-3 rounded shadow-lg text-sm font-medium";
   
     const colors = {
       success: "bg-green-100 text-green-800 border border-green-300",
