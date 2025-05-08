@@ -11,7 +11,7 @@ Chart.register(...registerables, zoomPlugin);
 
 const ChartGeneration = () => {
   const chartRef = useRef(null);
-  const tableName = "sales_records";
+  const tableName = "retail+sales+data";
 
   const [chartForm, setChartForm] = useState({
     type: "bar",
@@ -37,7 +37,7 @@ const ChartGeneration = () => {
     const loadCsv = async () => {
       setLoading("Loading CSV...");
       try {
-        await axios.get("http://localhost:8000/load_csv/", { params: { table: tableName } });
+        await axios.get("http://localhost:5000/load_csv/", { params: { table: tableName } });
         setCsvLoaded(true);
       } catch (err) {
         console.error("Error loading CSV:", err);
@@ -53,7 +53,7 @@ const ChartGeneration = () => {
     const fetchColumns = async () => {
       setLoading("Loading available columns...");
       try {
-        const res = await axios.get("http://localhost:8000/get_chart_columns/", {
+        const res = await axios.get("http://localhost:5000/get_chart_columns/", {
           params: { table: tableName, chart_type: chartForm.type }
         });
         setXOptions(res.data.x_columns || []);
@@ -83,7 +83,7 @@ const ChartGeneration = () => {
       if (chartForm.type === "histogram") params.bins = chartForm.bins;
       else params.y = chartForm.y;
 
-      const res = await axios.get("http://localhost:8000/get_summary/", { params });
+      const res = await axios.get("http://localhost:5000/get_summary/", { params });
       const labels = res.data.x;
       const data = res.data.y;
 

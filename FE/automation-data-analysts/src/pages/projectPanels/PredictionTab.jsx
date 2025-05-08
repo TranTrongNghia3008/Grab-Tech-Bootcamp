@@ -1,61 +1,87 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FaMagic, FaDownload, FaChartLine } from "react-icons/fa"; // Import thêm FaChartLine
 import { Button, Card } from "../../components/ui";
 import DataTable from "../../components/DataTable";
 import UploadDropzone from "../../components/UploadDropzone"; 
+import { predictModel } from "../../components/services/modelingServices";
+import { useAppContext } from "../../contexts/AppContext";
 
-export default function PredictionTab() {
+export default function PredictionTab({ finalizedModelId }) {
+  const { state, updateState } = useAppContext();
+  const { predictedResults } = state;
   const [uploadedFile, setUploadedFile] = useState(null);
-  const [data, setData] = useState([]);
   const [predictedData, setPredictedData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [predictResults, setPredictResults] = useState(null); 
+
+  useEffect(() => {
+      if (predictedResults) {
+        console.log("Predicted Results from state:", predictedResults);
+        processPredictResults(predictedResults)
+      }
+    }, [predictedResults]);
+
+  const processPredictResults = (predictResults) => {
+    setPredictResults(predictResults); 
+    const { columns, data: rows } = predictResults.preview_predictions;
+    const formattedData = rows.map((row) => {
+      const rowObj = {};
+      columns.forEach((col, i) => {
+        rowObj[col] = row[i];
+      });
+      return rowObj;
+    });
+
+    setPredictedData(formattedData);
+  }
 
   const handleFileAccepted = (file) => {
     setUploadedFile(file);
-    // Giả lập đọc file CSV
-    setTimeout(() => {
-      setData([
-        { age: 25, income: 40000, gender: "F" },
-        { age: 30, income: 55000, gender: "M" },
-        { age: 22, income: 30000, gender: "F" }
-      ]);
-    }, 500);
+    setPredictedData([]); 
   };
 
-  const handlePredict = () => {
-    if (!data.length) {
+  const handlePredict = async () => {
+    if (!uploadedFile) {
       alert("Please upload a CSV file first!");
       return;
     }
-
+  
     setLoading(true);
-
-    setTimeout(() => {
-      const predicted = data.map((row) => ({
-        ...row,
-        prediction_label: Math.random() > 0.5 ? 1 : 0,
-        prediction_score: Math.random().toFixed(2),
-      }));
-
-      setPredictedData(predicted);
+  
+    try {
+      const predictResults = await predictModel(finalizedModelId, uploadedFile);
+      console.log("Predict results:", predictResults);
+      updateState({predictedResults: predictResults})
+      processPredictResults(predictResults)
+      setUploadedFile(false)
+    } catch (error) {
+      console.error("Prediction failed:", error);
+      alert("Prediction failed. Check console for details.");
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
+  
 
   const handleDownloadPredicted = () => {
-    const headers = Object.keys(predictedData[0]).join(",");
-    const rows = predictedData.map(row => Object.values(row).join(","));
-    const csvContent = [headers, ...rows].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    if (!predictResults?.full_csv_base64) {
+      alert("No prediction result available to download.");
+      return;
+    }
+  
+    const byteCharacters = atob(predictResults.full_csv_base64);
+    const byteNumbers = new Array(byteCharacters.length).fill().map((_, i) => byteCharacters.charCodeAt(i));
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: "text/csv;charset=utf-8;" });
+  
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "predicted_data.csv";
+    a.download = "predicted_full.csv";
     a.click();
     URL.revokeObjectURL(url);
   };
-
+  
   const handleViewDriftReport = () => {
     // Giả lập mở file drift_report.html, bạn chỉnh path thật đúng sau này
     const reportUrl = "/drift_reports/prediction_drift_report.html"; 
@@ -72,7 +98,7 @@ export default function PredictionTab() {
         <div className="flex items-center justify-between px-4 py-3 bg-green-100 border border-green-200 rounded-md text-sm text-green-800">
           <span>📄 File uploaded: {uploadedFile.name}</span>
           <button
-            onClick={() => { setUploadedFile(null); setData([]); setPredictedData([]); }}
+            onClick={() => { setUploadedFile(null); setPredictedData([]); setPredictResults(null); }}
             className="text-xs text-red-500 hover:underline ml-4"
           >
             Remove
@@ -100,11 +126,14 @@ export default function PredictionTab() {
       {/* Prediction Results */}
       {predictedData.length > 0 && (
         <Card className="space-y-6">
+          <h3 className="text-gray-800 text-xl flex items-center gap-2">
+            Preview Prediction Results
+          </h3>
           <DataTable data={predictedData} />
 
           <div className="flex justify-end gap-4">
             <Button onClick={handleDownloadPredicted}>
-              <FaDownload className="mr-2" /> Download Predicted CSV
+              <FaDownload className="mr-2" /> Download Predicted Data
             </Button>
 
             <Button variant="outline" onClick={handleViewDriftReport}>

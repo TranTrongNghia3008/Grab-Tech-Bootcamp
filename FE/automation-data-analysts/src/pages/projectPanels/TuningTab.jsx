@@ -1,11 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FaCogs, FaCalculator, FaDownload } from "react-icons/fa";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { Card, Button } from "../../components/ui";
 import DataTable from "../../components/DataTable";
 import AnalyzeModel from "./AnalyzeModel";
+import { finalizeModel, tuningSession } from "../../components/services/modelingServices";
+import { useAppContext } from "../../contexts/AppContext";
 
-export default function TuningTab({ bestModelId }) {
+export default function TuningTab({ sessionId, bestModelId, comparisonResults = [], setIsFinalized, setFinalizedModelId }) {
+  const { state, updateState } = useAppContext();
+  const { tuningResults } = state;
   const [modelType, setModelType] = useState("");
   const [customGrid, setCustomGrid] = useState("");
   const [loading, setLoading] = useState(false);
@@ -14,21 +18,74 @@ export default function TuningTab({ bestModelId }) {
   const [bestParams, setBestParams] = useState({});
   const [cvMetrics, setCvMetrics] = useState([]);
   const [showErrors, setShowErrors] = useState(false);
-  
-  const modelOptions = [
-    { id: "lr", name: "Logistic Regression" },
-    { id: "ridge", name: "Ridge Classifier" },
-    { id: "et", name: "Extra Trees" },
-    { id: "nb", name: "Naive Bayes" },
-    { id: "knn", name: "K Neighbors" },
-  ];
+  const [availableModels, setAvailableModels] = useState([]);
+  const [isloadingFinalized, setIsLoadingFinalized] = useState(false);
+  const [tunedModelPath, setTunedModelPath] = useState(null);
+  const [ tunedFeatureImportancePlotPath, setTunedFeatureImportancePlotPath] = useState(null);
 
-  const handleTrainModel = () => {
+  useEffect(() => {
+    if (tuningResults) {
+      console.log("Tuning Results from state:", tuningResults);
+      processTuningResults(tuningResults)
+    }
+  }, [tuningResults]);
+
+  const processTuningResults = (tuneResults) => {
+    setTunedModelPath(tuneResults.tuned_model_save_path_base);
+    setTunedFeatureImportancePlotPath(tuneResults.feature_importance_plot_path);
+  
+    // Set best parameters
+    setBestParams(tuneResults.best_params || {});
+  
+    // Format CV metrics
+    const columns = tuneResults.cv_metrics_table.columns;
+    const rows = tuneResults.cv_metrics_table.data;
+  
+    const formattedMetrics = rows.map((row) => {
+      const rowObj = {};
+      columns.forEach((col, i) => {
+        rowObj[col] = typeof row[i] === "number" ? Number(row[i].toFixed(4)) : row[i];
+      });
+      return rowObj;
+    });
+  
+    setCvMetrics(formattedMetrics);
+  
+    const meanRow = formattedMetrics.find((item) => item.Fold === "Mean");
+  
+    if (meanRow) {
+      const dynamicMetrics = Object.entries(meanRow)
+        .filter(([key]) => key !== "Fold")
+        .map(([key, value]) => ({ [key]: value }));
+  
+      // Chuyển về 1 object thay vì mảng các object đơn
+      const mergedMetrics = Object.assign({}, ...dynamicMetrics);
+  
+      setAvailableModels([
+        {
+          index: tuneResults.tuned_model_id,
+          Model: "Your Tuned Model",
+          ...mergedMetrics,
+        },
+      ]);
+    }
+    setJobStatus("done");
+  };
+  
+  
+  const modelOptions = Array.isArray(comparisonResults)
+  ? comparisonResults.map((model) => ({
+      id: model.index,
+      name: model.Model,
+    }))
+  : [];
+
+  const handleTrainModel = async () => {
     if (!modelType) {
-      setShowErrors(true)
+      setShowErrors(true);
       return;
     }
-
+  
     if (customGrid) {
       try {
         JSON.parse(customGrid);
@@ -37,40 +94,53 @@ export default function TuningTab({ bestModelId }) {
         return;
       }
     }
-
+  
     setLoading(true);
     setJobStatus("pending");
-
-    setTimeout(() => {
+  
+    try {
       setJobStatus("running");
+      const tuneResults = await tuningSession(sessionId, modelType);
+      console.log("Tuning results:", tuneResults);
+      updateState({tuningResults: tuneResults})
 
-      setTimeout(() => {
-        setBestParams({
-          C: 2.1,
-          penalty: "l2",
-          solver: "lbfgs",
-          random_state: 42
-        });
-
-        setCvMetrics([
-          { Fold: 0, Accuracy: 0.8420, AUC: 0.8620, Recall: 0.7552, Precision: 0.8250, F1: 0.7885, Kappa: 0.6680, MCC: 0.6702 },
-          { Fold: 1, Accuracy: 0.8650, AUC: 0.9150, Recall: 0.8652, Precision: 0.8200, F1: 0.8420, Kappa: 0.7259, MCC: 0.7268 },
-          { Fold: "Mean", Accuracy: 0.8535, AUC: 0.8885, Recall: 0.8102, Precision: 0.8225, F1: 0.8152, Kappa: 0.6969, MCC: 0.6985 }
-        ]);
-        setLoading(false);
-        setJobStatus("done");
-      }, 2000);
-    }, 1000);
+      processTuningResults(tuneResults)
+    } catch (error) {
+      console.error("Tuning failed:", error);
+      setJobStatus("error");
+    } finally {
+      setLoading(false);
+    }
   };
-
+  
   const handleDownloadModel = () => {
-    const blob = new Blob(["This is your tuned model (.pkl)"], { type: "application/octet-stream" });
-    const url = URL.createObjectURL(blob);
+    const formattedPath = tunedModelPath
+      .replace(/\\/g, "/") // convert Windows \ to /
+      .replace("../FE/automation-data-analysts/public", "");
+  
+    // Assume file is model.pkl inside that directory
+    const downloadUrl = `${formattedPath}.pkl`;
+  
+    // Trigger download
     const a = document.createElement("a");
-    a.href = url;
+    a.href = downloadUrl;
     a.download = "tuned_model.pkl";
     a.click();
-    URL.revokeObjectURL(url);
+  };
+  
+  
+  const handleFinalizeModel = async () => {
+    try {
+      setIsLoadingFinalized(true);
+      const finalizeResults = await finalizeModel(sessionId, modelType);
+      console.log("Finalize results:", finalizeResults);
+      setFinalizedModelId(finalizeResults.finalized_model_db_id);
+      setIsFinalized(true);
+    } catch (error) {
+      console.error("Failed to finalize model:", error);
+    } finally {
+      setIsLoadingFinalized(false);
+    }
   };
 
   return (
@@ -91,9 +161,9 @@ export default function TuningTab({ bestModelId }) {
               onChange={(e) => setModelType(e.target.value)}
               className="w-full border border-gray-300 rounded-md px-3 py-2 my-0 focus:outline-none focus:ring-2 focus:ring-green-500"
             >
-              <option value="">Select Model</option>
+              <option value="">Select model for tuning...</option>
               {modelOptions.map((m) => (
-                <option key={m.id} value={m.name}>
+                <option key={m.id} value={m.id}>
                   {m.name}
                 </option>
               ))}
@@ -160,14 +230,17 @@ export default function TuningTab({ bestModelId }) {
 
       {/* Analyze Model */}
       {jobStatus === "done" && (
-        <AnalyzeModel availableModels={[{ modelId: "tuned_model", modelName: "Your Tuned Model" }]} />
+        <AnalyzeModel availableModels={availableModels} sessionId={sessionId} imgPath={tunedFeatureImportancePlotPath}/>
       )}
 
       {/* Download Model */}
       {jobStatus === "done" && (
-        <div className="text-right">
+        <div className="flex justify-end gap-4">
           <Button onClick={handleDownloadModel}>
-            <FaDownload className="mr-2" /> Download Model (.pkl)
+            <FaDownload className="mr-2" /> Download tuned model
+          </Button>
+          <Button variant="outline" onClick={handleFinalizeModel} disabled={isloadingFinalized}>
+            {isloadingFinalized ? "Finalizing..." : "Finalize Model"}
           </Button>
         </div>
       )}

@@ -11,6 +11,7 @@ import DataInsightPanel from "./projectPanels/DataInsightPanel";
 import ChatbotPanel from "./projectPanels/ChatbotPanel";
 import ModelingPanel from "./projectPanels/ModelingPanel";
 import ExportPanel from "./projectPanels/ExportPanel";
+import { useAppContext } from "../contexts/AppContext";
 
 const tabs = [
   { label: "Overview", icon: <MdOutlineCleaningServices className="mr-2" /> },
@@ -21,6 +22,7 @@ const tabs = [
 ];
 
 export default function ProjectDetail() {
+  const { state } = useAppContext(); // Lấy state từ context
   const { id } = useParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("Overview");
@@ -34,6 +36,8 @@ export default function ProjectDetail() {
     }
     setActiveTab(tabLabel);
   };
+
+  console.log("Current datasetId:", state.datasetId);
 
   return (
     <div className="bg-[#FFFDF3] min-h-screen">
@@ -61,9 +65,9 @@ export default function ProjectDetail() {
                   key={tab.label}
                   onClick={() => handleTabClick(tab.label)}
                   disabled={isDisabled}
-                  className={`flex items-center px-4 py-2 mx-1 rounded-lg text-sm font-medium whitespace-nowrap transition hover:cursor-pointer
-                    ${activeTab === tab.label ? "bg-[#00843D] text-white shadow" : ""}
-                    ${isDisabled ? "opacity-50 cursor-not-allowed" : "text-[#1B1F1D] hover:bg-[#CDEBD5]"}
+                  className={`flex items-center px-4 py-2 mx-1 rounded-lg text-sm font-medium whitespace-nowrap transition
+                    ${activeTab === tab.label ? "bg-[#00843D] text-white shadow hover:cursor-pointer" : ""}
+                    ${isDisabled ? "opacity-50 cursor-not-allowed" : "text-[#1B1F1D] hover:bg-[#CDEBD5] hover:cursor-pointer"}
                   `}
                 >
                   {tab.icon}

@@ -113,51 +113,65 @@ export default function Projects() {
       </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-        {filteredProjects.map((project) => (
-          <Card
-          key={project.id}
-          className="relative cursor-pointer hover:shadow-md transition group"
-          onClick={() => {
-            localStorage.setItem("currentProject", JSON.stringify(project));
-            navigate("/project/" + project.id);
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
+  {filteredProjects.map((project) => (
+    <Card
+      key={project.id}
+      className="relative group border border-gray-200 shadow-sm rounded-lg p-4 hover:shadow-lg transition cursor-pointer bg-white"
+      onClick={() => {
+        localStorage.setItem("currentProject", JSON.stringify(project));
+        navigate("/project/" + project.id);
+      }}
+    >
+      {/* Project Name */}
+      <h2 className="font-semibold text-lg text-green-700 group-hover:text-green-800 line-clamp-1">
+        {project.name}
+      </h2>
+
+      {/* Time */}
+      <p className="text-xs text-gray-500 mt-1">
+        Last updated:&nbsp;
+        <span className="font-medium text-gray-600">
+          {new Date(project.updatedAt).toLocaleString("en-GB", {
+            hour: "2-digit",
+            minute: "2-digit",
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          })}
+        </span>
+      </p>
+
+      {/* Hover Actions */}
+      <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setSelectedProject(project);
+            setNewName(project.name);
+            setShowRenameModal(true);
           }}
+          className="text-gray-500 hover:text-yellow-600 bg-white rounded-full p-1 shadow-sm hover:shadow-md transition"
+          title="Rename"
         >
-          <h2 className="font-semibold text-lg text-green-700">{project.name}</h2>
-          <p className="text-xs text-gray-500 mt-1">
-            Last updated: {new Date(project.updatedAt).toLocaleString()}
-          </p>
-
-          {/* Actions */}
-          <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedProject(project);
-                setNewName(project.name);
-                setShowRenameModal(true);
-              }}
-              className="text-gray-500 hover:text-yellow-600"
-              title="Rename"
-            >
-              <Pencil size={16} />
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedProject(project);
-                setShowDeleteModal(true);
-              }}
-              className="text-gray-400 hover:text-red-600"
-              title="Delete"
-            >
-              <Trash2 size={16} />
-            </button>
-          </div>
-        </Card>
-
-        ))}
+          <Pencil size={16} />
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setSelectedProject(project);
+            setShowDeleteModal(true);
+          }}
+          className="text-gray-400 hover:text-red-600 bg-white rounded-full p-1 shadow-sm hover:shadow-md transition"
+          title="Delete"
+        >
+          <Trash2 size={16} />
+        </button>
       </div>
+    </Card>
+  ))}
+</div>
+
 
       {/* Rename Modal */}
       {showRenameModal && selectedProject && (

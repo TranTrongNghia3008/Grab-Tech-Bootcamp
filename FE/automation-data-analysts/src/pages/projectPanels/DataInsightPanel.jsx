@@ -5,9 +5,13 @@ import { FaChartBar, FaProjectDiagram } from "react-icons/fa";
 import { FiBarChart2, FiFileText } from "react-icons/fi";
 import { Loader2 } from "lucide-react";
 import ChartGeneration from "./ChartGeneration";
+import { useAppContext } from "../../contexts/AppContext";
+import { getCorrelation, getSummaryStatistics } from "../../components/services/EDAServices";
 
 export default function DataInsightPanel() {
-//   const datasetId = 123; 
+  const { state } = useAppContext(); 
+  const { datasetId } = state;
+  // const datasetId = 13; // Thay thế bằng datasetId thực tế từ context hoặc props
 
   const [stats, setStats] = useState(null);
   const [corr, setCorr] = useState(null);
@@ -15,49 +19,47 @@ export default function DataInsightPanel() {
   const [loadingReports, setLoadingReports] = useState(false);
   const [fetched, setFetched] = useState(false); 
 
-
-  // Mock fetch stats
   useEffect(() => {
-    // Gọi API thực tế: GET /v1/datasets/{id}/eda/stats
-    setTimeout(() => {
-      setStats([
-        { column: "age", mean: 30.5, std: 5.2, min: 20, max: 40, mode: 28 },
-        { column: "income", mean: 50000, std: 10000, min: 20000, max: 100000, mode: 48000 },
-        { column: "education", mean: 16.3, std: 2.5, min: 12, max: 20, mode: 16 },
-        { column: "years_of_experience", mean: 7.5, std: 3.1, min: 1, max: 20, mode: 5 },
-        { column: "hours_per_week", mean: 42.3, std: 8.2, min: 30, max: 60, mode: 40 },
-        { column: "age11", mean: 30.5, std: 5.2, min: 20, max: 40, mode: 28 },
-        { column: "income11", mean: 50000, std: 10000, min: 20000, max: 100000, mode: 47000 },
-        { column: "education11", mean: 16.3, std: 2.5, min: 12, max: 20, mode: 14 },
-        { column: "years_of_experience11", mean: 7.5, std: 3.1, min: 1, max: 20, mode: 3 },
-        { column: "hours_per_week11", mean: 42.3, std: 8.2, min: 30, max: 60, mode: 40 }
-      ]);
-      
-      
-      
-    }, 800);
+    const fetchData = async () => {
+      try {
+        // Gọi API thống kê tổng quan
+        const statsRes = await getSummaryStatistics(datasetId);
+        console.log("Summary Statistics: ", statsRes)
+        const transformedData = Object.entries(statsRes).map(([key, value]) => ({
+            column: key,
+            ...value
+        }));
+        console.log(transformedData)
+        setStats(transformedData);
+  
+        // Gọi API correlation
+        const corrRes = await getCorrelation(datasetId);
+        setCorr(corrRes);
+        console.log("Correlation data:", corrRes);
 
-    // Gọi correlation
-    setTimeout(() => {
-      setCorr([
-        ["", "age", "income", "score", "experience", "education", "hours_worked", "happiness", "health"],
-        ["age", 1.0, 0.65, -0.2, 0.8, 0.5, 0.3, 0.6, -0.1],
-        ["income", 0.65, 1.0, 0.3, 0.5, 0.4, 0.2, 0.7, 0.1],
-        ["score", -0.2, 0.3, 1.0, -0.6, 0.5, 0.1, 0.2, -0.3],
-        ["experience", 0.8, 0.5, -0.6, 1.0, 0.7, 0.4, 0.5, 0.2],
-        ["education", 0.5, 0.4, 0.5, 0.7, 1.0, 0.6, 0.3, 0.4],
-        ["hours_worked", 0.3, 0.2, 0.1, 0.4, 0.6, 1.0, 0.5, 0.1],
-        ["happiness", 0.6, 0.7, 0.2, 0.5, 0.3, 0.5, 1.0, 0.8],
-        ["health", -0.1, 0.1, -0.3, 0.2, 0.4, 0.1, 0.8, 1.0]
-      ]);
-    }, 1000);
+        const labels = Object.keys(corrRes);
+        const transformedCorr = [];
 
-    // Gọi danh sách báo cáo
-    setReports([
-      { name: "eda_report_01.pdf", url: "#" },
-      { name: "eda_sales_2024.pdf", url: "#" }
-    ]);
-  }, []);
+        // Thêm dòng đầu tiên (tiêu đề cột)
+        transformedCorr.push(["", ...labels]);
+
+        // Thêm từng dòng dữ liệu
+        for (const rowLabel of labels) {
+            const row = [rowLabel];
+            for (const colLabel of labels) {
+                row.push(corrRes[rowLabel][colLabel]);
+            }
+            transformedCorr.push(row);
+        }
+        setCorr(transformedCorr);  
+      } catch (error) {
+        console.error("Error API:", error);
+      }
+    };
+  
+    fetchData();
+  }, [datasetId]);
+  
 
 
   const handleGetReport = () => {
@@ -96,7 +98,7 @@ export default function DataInsightPanel() {
         }
       });
     });
-    return max.toFixed(2);
+    return max.toFixed(3);
   };
 
   // Hàm tính toán giá trị tương quan thấp nhất
@@ -109,7 +111,7 @@ export default function DataInsightPanel() {
         }
       });
     });
-    return min.toFixed(2);
+    return min.toFixed(3);
   };
 
   // Hàm tính toán giá trị trung bình của ma trận tương quan
@@ -124,7 +126,7 @@ export default function DataInsightPanel() {
         }
       });
     });
-    return (sum / count).toFixed(2);
+    return (sum / count).toFixed(3);
   };
 
 
@@ -167,7 +169,7 @@ export default function DataInsightPanel() {
                   <span>High correlation</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <span className="inline-block w-4 h-4 rounded" style={{ backgroundColor: "rgba(0,132,61,0.1)" }}></span>
+                  <span className="inline-block w-4 h-4 rounded" style={{ backgroundColor: "rgba(0,132,61,0.05)" }}></span>
                   <span>Low correlation</span>
                 </div>
               </div>
@@ -179,27 +181,36 @@ export default function DataInsightPanel() {
                 <tbody>
                   {corr.map((row, rowIdx) => (
                     <tr key={rowIdx}>
-                      {row.map((cell, colIdx) => {
-                        const value = typeof cell === "number" ? cell : null;
-                        const bgColor = value !== null ? `rgba(0, 132, 61, ${Math.abs(value)})` : "#f9fafb";
+                    {row.map((cell, colIdx) => {
+                      const value = typeof cell === "number" ? cell : null;
 
-                        return (
-                          <td
-                            key={colIdx}
-                            className="w-12 h-12 border border-gray-200 text-center align-middle text-xs font-medium truncate"
-                            style={{
-                              backgroundColor: bgColor,
-                              color: Math.abs(value) > 0.5 ? "white" : "black",
-                              maxWidth: "100px", 
-                              overflow: "hidden", 
-                              textOverflow: "ellipsis" 
-                            }}
-                            title={value !== null ? value.toFixed(2) : ""}
-                          >
-                            {value !== null ? value.toFixed(2) : cell}
-                          </td>
-                        );
-                      })}
+                      // Tăng sắc độ: chuẩn hóa alpha trong khoảng [0.05, 1]
+                      let bgColor = "#f9fafb"; // màu header
+                      if (value !== null) {
+                        const absVal = Math.abs(value);
+                        const minAlpha = 0.05; // tránh màu quá nhạt
+                        const maxAlpha = 1;
+                        const adjustedAlpha = minAlpha + (maxAlpha - minAlpha) * absVal;
+                        bgColor = `rgba(0, 132, 61, ${adjustedAlpha})`;
+                      }
+
+                      return (
+                        <td
+                          key={colIdx}
+                          className="w-12 h-12 border border-gray-200 text-center align-middle text-xs font-medium truncate"
+                          style={{
+                            backgroundColor: bgColor,
+                            color: value !== null && Math.abs(value) > 0.5 ? "white" : "black",
+                            maxWidth: "100px",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis"
+                          }}
+                          title={value !== null ? value.toFixed(3) : ""}
+                        >
+                          {value !== null ? value.toFixed(3) : cell}
+                        </td>
+                      );
+                    })}
                     </tr>
                   ))}
                 </tbody>

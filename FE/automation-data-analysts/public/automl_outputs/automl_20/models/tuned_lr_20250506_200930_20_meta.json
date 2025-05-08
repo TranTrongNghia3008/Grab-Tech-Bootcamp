@@ -1,0 +1,8 @@
+{
+    "task_type": "regression",
+    "pycaret_version": "3.3.2",
+    "model_stage": "tuned",
+    "model_id_used": "lr",
+    "session_id": 20,
+    "timestamp": "20250506_200930"
+}
