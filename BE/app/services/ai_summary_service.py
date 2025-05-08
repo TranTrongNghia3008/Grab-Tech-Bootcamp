@@ -181,7 +181,8 @@ class AISummaryService:
         primary_model_candidate = self.ORIGINAL_DEFAULT_MODEL
 
         if input_type == 'summary_stats':
-            data_string = json.dumps(data, indent=2)
+            serializable_data = [item.model_dump(by_alias=True) for item in data]
+            data_string = json.dumps(serializable_data, indent=2)
             text_prompt_content = get_summary_stats_prompt(data_string)
             system_message = "You are a helpful and friendly AI assistant skilled at extracting key insights from statistical summaries and suggesting next steps in simple terms. Format the output in HTML format."
             final_model_name = primary_model_candidate
