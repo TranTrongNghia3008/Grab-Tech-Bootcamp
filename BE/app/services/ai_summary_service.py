@@ -18,7 +18,6 @@ def encode_image_to_base64(image_path: str) -> Optional[str]:
         print(f"Warning: Error encoding image {image_path}: {e}")
         return None
 
-# --- Prompts (Identical to original script's definitions) ---
 def get_model_performance_prompt(perf_string: str) -> str:
     return f"""
     Analyze the following machine learning model performance comparison table. The table structure is defined by 'columns' and model results are in 'data'. Metrics might be for regression (like MAE, MSE, RMSE, R2 - lower error is better, R2 closer to 1 is better) or classification (like Accuracy, Precision, Recall, F1, AUC - generally higher is better). 'TT (Sec)' is training time in seconds (lower is better).
@@ -154,6 +153,66 @@ def get_tuned_model_with_image_prompt_text(tuning_results_string: str) -> str:
 
     Keep your language direct, simple, and focused on practical value. Ensure the entire output is a single HTML block.
     """
+    
+def get_baseline_model_with_image_prompt_text(metrics_string: str) -> str:
+    """
+    Returns the textual part of the prompt for summarizing a baseline model's
+    performance (either classification or regression) and a feature importance image.
+    This text is intended for a multimodal model like GPT-4o that will also see the image.
+    """
+    return f"""
+    You have two pieces of information about a **baseline predictive model**:
+    1.  **Performance Metrics (text below):** Key performance scores for the model. These metrics will help determine if it's a classification or regression model.
+        ```json
+        {metrics_string}
+        ```
+    2.  **Feature Importance Plot (image):** An image you will also analyze, showing which input data characteristics (features) the model uses most to make its predictions.
+
+    **Your Task for a Non-Technical or Semi-Technical User:**
+    First, identify if the provided metrics indicate a **classification** task or a **regression** task.
+    Then, provide a clear and concise summary of this baseline model's performance according to its task type, and discuss the key factors driving its predictions. Highlight what these findings mean practically and suggest actionable next steps, keeping in mind this is a baseline. Output in HTML format.
+
+    **1. Identifying Model Type and Understanding Performance (from JSON data):**
+
+    *   **Determine Task Type:** Based on the metric names in the JSON (e.g., 'Accuracy', 'AUC', 'Precision', 'Recall', 'F1', 'Kappa', 'MCC' suggest CLASSIFICATION; 'MAE', 'MSE', 'RMSE', 'R2', 'RMSLE', 'MAPE' suggest REGRESSION), clearly state the identified task type.
+
+    *   **If CLASSIFICATION Metrics are Present (interpret these):**
+        *   **Overall Accuracy:** "The model correctly classifies [Accuracy * 100]% of the instances overall." (Accuracy: 0-1, higher is better)
+        *   **AUC (Area Under the ROC Curve):** "The model has a [good/moderate/fair/poor] ability to distinguish between the classes (AUC: [AUC value])." (AUC: 0.5-1, higher is much better)
+        *   **Precision:** "When the model predicts the positive class, it is correct [Precision * 100]% of the time." (Higher is better)
+        *   **Recall:** "The model successfully identifies [Recall * 100]% of all actual positive instances." (Higher is better)
+        *   **F1-Score:** "The F1-Score ([F1 value]), balancing Precision and Recall, indicates its positive class prediction performance." (0-1, higher is better)
+        *   **Kappa:** "Cohen's Kappa ([Kappa value]) suggests the model's agreement is [significantly better than / similar to / worse than] random chance." (Closer to 1 is better)
+        *   **MCC (Matthews Correlation Coefficient):** "The MCC ([MCC value]) offers a balanced measure of prediction quality." (Closer to +1 is better)
+        *   **Overall Assessment:** Briefly summarize the classification performance.
+
+    *   **If REGRESSION Metrics are Present (interpret these):**
+        *   **MAE (Mean Absolute Error):** "On average, the model's predictions are off by [MAE value] units from the actual values." (Lower is better)
+        *   **RMSE (Root Mean Squared Error):** "The RMSE of [RMSE value] indicates the typical magnitude of prediction error, penalizing larger errors more. This error is in the same units as the target variable." (Lower is better)
+        *   **R-squared (R2):** "The model explains [R2 * 100]% of the variance in the target variable. An R2 closer to 1 indicates a better fit." (0-1, higher is better; can be negative for very poor models)
+        *   **RMSLE (Root Mean Squared Log Error, if present):** "The RMSLE of [RMSLE value] is useful when predicting values that span several orders of magnitude and you care more about percentage errors." (Lower is better)
+        *   **MAPE (Mean Absolute Percentage Error, if present):** "On average, the model's prediction error is [MAPE * 100]% of the actual value." (Lower is better, but can be problematic if actual values are near zero)
+        *   **Overall Assessment:** Briefly summarize the regression performance (e.g., "The model has a [high/moderate/low] level of predictive accuracy for this regression task based on R2 and error metrics.")
+
+    *   **If metrics are unclear or mixed, state that and try to interpret what's most evident.**
+
+    **2. Key Factors Driving the Baseline Model's Predictions (from the Feature Importance Image):**
+    *   **Top Influencers:** "The baseline model seems to rely most on [Top Feature 1] and [Top Feature 2] for its predictions. [Feature 3] also appears to be important."
+    *   **Any Surprises or Expected Factors?** "It's [interesting/expected] that [Specific Feature] is a key driver for this initial model."
+    *   **Less Influential Factors:** "Features like [Less Important Feature 1] and [Less Important Feature 2] seem to have less impact on this baseline model's decisions."
+
+    **3. Actionable Recommendations & Next Steps (Considering it's a Baseline and the Identified Task Type):** use a recommend and friendly tone to:
+    *   **Evaluate Baseline Adequacy:** "This baseline model provides a starting point. Based on its [classification/regression] performance (e.g., [mention key identified metric like F1, AUC, R2, or MAE]), is this level acceptable for the simplest solution, or is significant improvement the next goal?"
+    *   **Leverage Feature Insights for Improvement:**
+        *   "The key features ([Top Feature 1], [Top Feature 2]) are good candidates for further exploration and ensuring data quality in more advanced models, regardless of the task."
+        *   "If [Surprising Top Feature] is highly influential, investigate why. If an expected important feature is *not* influential, this might indicate an issue or an opportunity for feature engineering."
+    *   **Next Steps for Model Development (tailor to identified task type):**
+        *   **For Classification:** "Consider if performance on specific metrics (e.g., Precision vs. Recall) needs to be prioritized. You might explore different algorithms, feature engineering, or addressing data imbalances."
+        *   **For Regression:** "Focus on strategies to reduce prediction error (e.g., MAE/RMSE) or improve R-squared. This could involve trying different regression algorithms, feature transformations, or outlier handling."
+        *   **General:** "Compare these baseline results against more complex models to quantify the benefit of added complexity."
+
+    Keep your language direct, simple, and focused on practical value. Ensure the entire output is a single HTML block.
+    """
 
 class AISummaryService:
     # This was the default model in the original get_ai_summary function signature
@@ -236,6 +295,29 @@ class AISummaryService:
             # else: No change to text_prompt_content if image is missing, mirroring original script's behavior
             # where it would just send the text part without explicit mention of missing image in the prompt.
 
+            messages = [
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": user_content}
+            ]
+        elif input_type == 'baseline_model_with_image_eval':
+            if not isinstance(data, dict) or "metrics_data" not in data:
+                return "Error: For 'baseline_model_with_image_eval', data must be a dictionary with 'metrics_data'."
+            
+            metrics_data_string = json.dumps(data["metrics_data"], indent=2) # metrics_data is a dict
+            text_prompt_content = get_baseline_model_with_image_prompt_text(metrics_data_string)
+            system_message = "You are an AI assistant skilled at interpreting baseline classification model metrics and feature importance plots for a non-technical audience, providing actionable insights. Format the output in HTML format."
+            final_model_name = primary_model_candidate or "gpt-4o" # Multimodal, so GPT-4o or similar is good
+            current_max_tokens = max_tokens_multimodal_or_perf
+
+            user_content: List[Dict[str, Any]] = [{"type": "text", "text": text_prompt_content}]
+            base64_image = data.get("image_base64")
+            mime_type = data.get("image_mime_type")
+
+            if base64_image and mime_type:
+                user_content.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:{mime_type};base64,{base64_image}"}
+                })
             messages = [
                 {"role": "system", "content": system_message},
                 {"role": "user", "content": user_content}

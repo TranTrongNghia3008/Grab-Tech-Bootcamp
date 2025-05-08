@@ -48,6 +48,18 @@ class TunedModelCVMetricsRow(BaseModel):
     class Config:
         populate_by_name = True
 
+class BaselineModelMetricsData(BaseModel):
+    accuracy: float = Field(..., ge=0, le=1)
+    auc: float = Field(..., ge=0, le=1) # Typically 0.5 to 1 for useful models
+    recall: float = Field(..., ge=0, le=1)
+    precision: float = Field(..., ge=0, le=1)
+    f1: float = Field(..., ge=0, le=1, alias="F1") # Alias for F1-score
+    kappa: float = Field(..., ge=-1, le=1) # Cohen's Kappa
+    mcc: float = Field(..., ge=-1, le=1)   # Matthews Correlation Coefficient
+
+    class Config:
+        populate_by_name = True # To allow "F1" as input key for f1 field
+
 
 class TunedModelCVMetricsTable(BaseModel):
     columns: List[str]
