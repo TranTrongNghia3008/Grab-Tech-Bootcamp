@@ -23,3 +23,16 @@ def get_file_path(filename: str) -> str:
 # Load CSV from DS
 def load_csv_as_dataframe(file_path: str) -> pd.DataFrame:
     return pd.read_csv(file_path)
+
+def get_cleaned_df_path(raw_file_path: str) -> str:
+    file_path = Path(raw_file_path)
+    cleaned_name = file_path.stem + "_cleaned" + file_path.suffix
+    cleaned_file_path = file_path.with_name(cleaned_name)
+    
+    file_path = Path(cleaned_file_path)
+    
+    if not file_path.exists():
+        df = load_csv_as_dataframe(raw_file_path)
+        save_dataframe_as_csv(df, cleaned_name)
+    
+    return cleaned_file_path

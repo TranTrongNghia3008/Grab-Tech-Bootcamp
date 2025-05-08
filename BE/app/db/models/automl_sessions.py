@@ -8,7 +8,7 @@ from app.db.base import Base
 class AutoMLSession(Base):
     __tablename__ = 'automl_sessions'
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     name = Column(String, index=True, nullable=True)
     dataset_id = Column(Integer, ForeignKey('datasets.id', ondelete='CASCADE'), nullable=False)
     target_column = Column(String, nullable=False)

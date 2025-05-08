@@ -5,7 +5,7 @@ from sqlalchemy.orm import relationship
 class Connection(Base):
     __tablename__ = 'connections'
     
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     type = Column(String, nullable=False) # postgres or ...
     host = Column(String, nullable=False)
     port = Column(Integer, nullable=False)
