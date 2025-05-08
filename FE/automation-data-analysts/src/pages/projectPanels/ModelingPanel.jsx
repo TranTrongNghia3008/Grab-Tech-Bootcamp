@@ -6,6 +6,8 @@ import BaselineTab from "./BaselineTab";
 import TuningTab from "./TuningTab";
 import PredictionTab from "./PredictionTab";
 import { useAppContext } from "../../contexts/AppContext";
+import { getModelPerformanceAnalysis } from "../../components/services/aisummaryServices";
+import { parseAISummary } from "../../utils/parseHtml";
 
 export default function ModelingPanel() {
   const { state } = useAppContext();
@@ -16,6 +18,8 @@ export default function ModelingPanel() {
   const [activeTab, setActiveTab] = useState("Baseline");
   const [isFinalized, setIsFinalized] = useState(false);
   const [finalizedModelId, setFinalizedModelId] = useState(null);
+  const [modelPerformanceAnalysis, setModelPerformanceAnalysis] = useState(null);
+  const [loadingModelPerformanceAnalysis, setLoadingModelPerformanceAnalysis] = useState(false);
 
   console.log("ModelingPanel - datasetId:", datasetId);
   console.log("ModelingPanel - sessionId:", sessionId);
@@ -41,6 +45,19 @@ export default function ModelingPanel() {
     const bestScore = best["RMSE"] - best["R2"];
     return score < bestScore ? current : best;
   });
+
+  const handleFetchModelPerformanceAnalysis = async () => {
+    setLoadingModelPerformanceAnalysis(true);
+    try {
+      const res = await getModelPerformanceAnalysis(comparisonResults);
+      
+      setModelPerformanceAnalysis(parseAISummary(res.summary_html)); 
+    } catch (err) {
+      console.error("Failed to fetch Model Performance Analysis:", err);
+    } finally {
+      setLoadingModelPerformanceAnalysis(false);
+    }
+  };
 
   const bestModelId = bestModel["index"];
   return (
@@ -133,9 +150,29 @@ export default function ModelingPanel() {
 
 
         {/* Tab content */}
-        {activeTab === "Baseline" && <BaselineTab comparisonResults={formattedComparisonResults} sessionId={sessionId} bestModel={bestModel}/>}
-        {activeTab === "Tuning" && <TuningTab sessionId={sessionId} bestModelId={bestModelId} comparisonResults={formattedComparisonResults} setIsFinalized={setIsFinalized} setFinalizedModelId={setFinalizedModelId}/>}
-        {activeTab === "Prediction" && <PredictionTab finalizedModelId={finalizedModelId} />}
+        {activeTab === "Baseline" && 
+          <BaselineTab 
+            comparisonResults={formattedComparisonResults} 
+            sessionId={sessionId} bestModel={bestModel}
+            modelPerformanceAnalysis={modelPerformanceAnalysis}
+            loadingModelPerformanceAnalysis={loadingModelPerformanceAnalysis}
+            handleFetchModelPerformanceAnalysis={handleFetchModelPerformanceAnalysis}
+          />
+        }
+        {activeTab === "Tuning" && 
+          <TuningTab 
+            sessionId={sessionId} 
+            bestModelId={bestModelId} 
+            comparisonResults={formattedComparisonResults} 
+            setIsFinalized={setIsFinalized} 
+            setFinalizedModelId={setFinalizedModelId}
+          />
+        }
+        {activeTab === "Prediction" && 
+          <PredictionTab 
+            finalizedModelId={finalizedModelId} 
+          />
+        }
       </div>
 
     </div>

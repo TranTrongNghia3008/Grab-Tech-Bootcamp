@@ -6,6 +6,8 @@ import DataTable from "../../components/DataTable";
 import AnalyzeModel from "./AnalyzeModel";
 import { finalizeModel, tuningSession } from "../../components/services/modelingServices";
 import { useAppContext } from "../../contexts/AppContext";
+import { getTunedModelEvaluation } from "../../components/services/aisummaryServices";
+import { parseAISummary } from "../../utils/parseHtml";
 
 export default function TuningTab({ sessionId, bestModelId, comparisonResults = [], setIsFinalized, setFinalizedModelId }) {
   const { state, updateState } = useAppContext();
@@ -21,7 +23,10 @@ export default function TuningTab({ sessionId, bestModelId, comparisonResults = 
   const [availableModels, setAvailableModels] = useState([]);
   const [isloadingFinalized, setIsLoadingFinalized] = useState(false);
   const [tunedModelPath, setTunedModelPath] = useState(null);
-  const [ tunedFeatureImportancePlotPath, setTunedFeatureImportancePlotPath] = useState(null);
+  const [tunedFeatureImportancePlotPath, setTunedFeatureImportancePlotPath] = useState(null);
+  const [tunedResultsForEvaluation, setTunedResultsForEvaluation] = useState(null);
+  const [tunedModelEvaluation, setTunedModelEvaluation] = useState(null);
+  const [loadingTunedModelEvaluation, setLoadingTunedModelEvaluation] = useState(false);
 
   useEffect(() => {
     if (tuningResults) {
@@ -103,6 +108,10 @@ export default function TuningTab({ sessionId, bestModelId, comparisonResults = 
       const tuneResults = await tuningSession(sessionId, modelType);
       console.log("Tuning results:", tuneResults);
       updateState({tuningResults: tuneResults})
+      setTunedResultsForEvaluation(tuneResults)
+      
+      // const tunedModelEvaluation = await getTunedModelEvaluation(tuneResults)
+      // console.log("Tuned Model Evaluation: ", tunedModelEvaluation)
 
       processTuningResults(tuneResults)
     } catch (error) {
@@ -142,6 +151,19 @@ export default function TuningTab({ sessionId, bestModelId, comparisonResults = 
       setIsLoadingFinalized(false);
     }
   };
+  
+    const handleFetchTunedModelEvaluation = async () => {
+      setLoadingTunedModelEvaluation(true);
+      try {
+        const res = await getTunedModelEvaluation(tunedResultsForEvaluation);
+        
+        setTunedModelEvaluation(parseAISummary(res.summary_html)); 
+      } catch (err) {
+        console.error("Failed to fetch Tuned Model Evaluation:", err);
+      } finally {
+        setLoadingTunedModelEvaluation(false);
+      }
+    };
 
   return (
     <div className="space-y-8">
@@ -232,6 +254,30 @@ export default function TuningTab({ sessionId, bestModelId, comparisonResults = 
       {jobStatus === "done" && (
         <AnalyzeModel availableModels={availableModels} sessionId={sessionId} imgPath={tunedFeatureImportancePlotPath}/>
       )}
+
+      {jobStatus === "done" && (
+        <>
+          <div className="flex justify-between bg-green-50 border border-green-200 px-4 py-3 rounded-md text-sm text-green-900 shadow-sm">
+          <p className="me-5 my-auto">
+          <strong>Curious about how your tuned model truly performs - and what’s driving its decisions?</strong> <br/>
+          We've analyzed the model’s consistency, key contributing features, and provided actionable insights to help you confidently move toward deployment or further refinement.          </p>
+          <Button
+            onClick={handleFetchTunedModelEvaluation}
+            disabled={loadingTunedModelEvaluation}
+          >
+            {loadingTunedModelEvaluation ? "Analyzing..." : "Explore"}
+          </Button>
+        </div>
+        {tunedModelEvaluation && (
+          <div
+            className="bg-green-50 border border-green-200 px-4 py-3 rounded-md text-sm text-green-900 shadow-sm"
+            dangerouslySetInnerHTML={{ __html: tunedModelEvaluation }}
+          />
+        )}
+        </>
+      )}
+
+      
 
       {/* Download Model */}
       {jobStatus === "done" && (
