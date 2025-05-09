@@ -7,6 +7,8 @@ import { Loader2 } from "lucide-react";
 import ChartGeneration from "./ChartGeneration";
 import { useAppContext } from "../../contexts/AppContext";
 import { getCorrelation, getSummaryStatistics } from "../../components/services/EDAServices";
+import { getAICorrelationMatrix, getAISummaryStatistics } from "../../components/services/aisummaryServices";
+import { parseAISummary } from "../../utils/parseHtml";
 
 export default function DataInsightPanel() {
   const { state } = useAppContext(); 
@@ -15,9 +17,16 @@ export default function DataInsightPanel() {
 
   const [stats, setStats] = useState(null);
   const [corr, setCorr] = useState(null);
+  const [corrForSummary, setCorrForSummary] = useState(null)
   const [reports, setReports] = useState([]);
   const [loadingReports, setLoadingReports] = useState(false);
   const [fetched, setFetched] = useState(false); 
+  const [aiSummaryStatsRes, setAISummaryStatsRes] = useState(null);
+  const [loadingAISummaryStats, setLoadingAISummaryStats] = useState(false);
+  const [aiCorrelationMatrix, setAICorrelationMatrix] = useState(null);
+  const [loadingAICorrelationMatrix, setLoadingCorrelationMatrix] = useState(false);
+
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -34,7 +43,7 @@ export default function DataInsightPanel() {
   
         // Gọi API correlation
         const corrRes = await getCorrelation(datasetId);
-        setCorr(corrRes);
+        setCorrForSummary(corrRes);
         console.log("Correlation data:", corrRes);
 
         const labels = Object.keys(corrRes);
@@ -52,6 +61,7 @@ export default function DataInsightPanel() {
             transformedCorr.push(row);
         }
         setCorr(transformedCorr);  
+        console.log(transformedCorr)
       } catch (error) {
         console.error("Error API:", error);
       }
@@ -59,8 +69,33 @@ export default function DataInsightPanel() {
   
     fetchData();
   }, [datasetId]);
-  
 
+  
+  const handleFetchAISummaryStatistics = async () => {
+    setLoadingAISummaryStats(true);
+    try {
+      const res = await getAISummaryStatistics(stats);
+      
+      setAISummaryStatsRes(parseAISummary(res.summary_html)); 
+    } catch (err) {
+      console.error("Failed to fetch summary stats:", err);
+    } finally {
+      setLoadingAISummaryStats(false);
+    }
+  };
+  
+  const handleFetchAICorrelationMatrix = async () => {
+    setLoadingCorrelationMatrix(true);
+    try {
+      const res = await getAICorrelationMatrix(corrForSummary);
+      
+      setAICorrelationMatrix(parseAISummary(res.summary_html)); 
+    } catch (err) {
+      console.error("Failed to fetch summary stats:", err);
+    } finally {
+      setLoadingCorrelationMatrix(false);
+    }
+  };
 
   const handleGetReport = () => {
     setLoadingReports(true);
@@ -137,15 +172,31 @@ export default function DataInsightPanel() {
       {/* Summary Stats */}
       {stats && (
         <Card>
-          <h3 className="text-gray-800 text-xl mb-4 flex items-center gap-2">
-            <FaChartBar/>
+          <h3 className="text-gray-800 text-xl flex items-center gap-2">
+            <FaChartBar />
             Summary Statistics
           </h3>
           <DataTable data={stats} />
+          <div className="flex justify-between bg-green-50 border border-green-200 px-4 py-3 rounded-md text-sm text-green-900 shadow-sm">
+            <p className="me-5 my-auto">
+              We've compiled a concise statistical summary from your data - uncover the key insights hidden beneath the surface.
+            </p>
+            <Button
+              onClick={handleFetchAISummaryStatistics}
+              disabled={loadingAISummaryStats}
+            >
+              {loadingAISummaryStats ? "Analyzing..." : "Explore"}
+            </Button>
+          </div>
+          {aiSummaryStatsRes && (
+            <div
+              className="bg-green-50 border border-green-200 px-4 py-3 rounded-md text-sm text-green-900 shadow-sm"
+              dangerouslySetInnerHTML={{ __html: aiSummaryStatsRes }}
+            />
+          )}
         </Card>
+
       )}
-
-
 
       {/* Correlation Matrix */}
       {corr && (
@@ -217,6 +268,24 @@ export default function DataInsightPanel() {
               </table>
             </div>
           </div>
+
+          <div className="flex justify-between bg-green-50 border border-green-200 px-4 py-3 rounded-md text-sm text-green-900 shadow-sm">
+            <p className="me-5 my-auto">
+            Explore how your variables move together - some relationships align with expectations, while others may surprise you.
+            </p>
+            <Button
+              onClick={handleFetchAICorrelationMatrix}
+              disabled={loadingAICorrelationMatrix}
+            >
+              {loadingAICorrelationMatrix ? "Analyzing..." : "Explore"}
+            </Button>
+          </div>
+          {aiCorrelationMatrix && (
+            <div
+              className="bg-green-50 border border-green-200 px-4 py-3 rounded-md text-sm text-green-900 shadow-sm"
+              dangerouslySetInnerHTML={{ __html: aiCorrelationMatrix }}
+            />
+          )}
         </Card>
       )}
 
