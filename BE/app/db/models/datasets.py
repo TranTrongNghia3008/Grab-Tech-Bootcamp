@@ -15,3 +15,8 @@ class Dataset(Base):
     connections = relationship("Connection", back_populates="datasets")
     cleaning_jobs = relationship('CleaningJob', back_populates='datasets', cascade='all, delete-orphan')
     automl_sessions = relationship('AutoMLSession', back_populates='datasets', cascade='all, delete-orphan')
+    chatbot_sessions = relationship(
+        "ChatSessionState",
+        back_populates="dataset",  
+        cascade="all, delete-orphan" 
+    )
