@@ -47,15 +47,15 @@ class TunedModelCVMetricsRow(BaseModel):
     
     class Config:
         populate_by_name = True
-
+        
 class BaselineModelMetricsData(BaseModel):
-    accuracy: float = Field(..., ge=0, le=1)
-    auc: float = Field(..., ge=0, le=1) # Typically 0.5 to 1 for useful models
-    recall: float = Field(..., ge=0, le=1)
-    precision: float = Field(..., ge=0, le=1)
-    f1: float = Field(..., ge=0, le=1, alias="F1") # Alias for F1-score
-    kappa: float = Field(..., ge=-1, le=1) # Cohen's Kappa
-    mcc: float = Field(..., ge=-1, le=1)   # Matthews Correlation Coefficient
+    mae: float = Field(..., alias="MAE")
+    mse: float = Field(..., alias="MSE")
+    rmse: float = Field(..., alias="RMSE")
+    r2: float = Field(..., alias="R2")
+    rmsle: float = Field(..., alias="RMSLE")
+    mape: float = Field(..., alias="MAPE")  
+    tt: float = Field(..., alias="TT (Sec)")
 
     class Config:
         populate_by_name = True # To allow "F1" as input key for f1 field
@@ -63,7 +63,7 @@ class BaselineModelMetricsData(BaseModel):
 
 class TunedModelCVMetricsTable(BaseModel):
     columns: List[str]
-    data: List[List[Union[str, float, int]]] # Simpler for now, can be List[TunedModelCVMetricsRow] with more effort if strict typing for each cell is needed
+    data: List[List[Union[str, float, int]]]
 
 class TunedModelResultsData(BaseModel):
     best_params: Dict[str, Any] # Using Dict[str, Any] for flexibility as in example
