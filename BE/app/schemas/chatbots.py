@@ -73,12 +73,24 @@ class FrontendJourneyLogItem(BaseModel): # A new schema for the API output
 class LoadedSessionResponse(BaseModel): # Schema for full session state reload
     dataset_id: int
     session_id: str
-    chat_history_json: List[Dict[str, Any]] # The AI-compatible history
-    analysis_journey_log_json: List[Dict[str, Any]]
+    #chat_history_json: List[Dict[str, Any]] # The AI-compatible history
+    #analysis_journey_log_json: List[Dict[str, Any]]
     journey_log: List[FrontendJourneyLogItem] # The rich journey log for UI reconstruction
     current_focus_filter: Optional[str]
-    pending_code_to_execute_json: Optional[Dict[str, Any]]
-    pending_whatif_code_to_execute_json: Optional[Dict[str, Any]] # Add if you have this state
-    pending_focus_proposal_json: Optional[Dict[str, Any]] # Add if you have this state
-    last_executed_plot_path: Optional[str] # This is the path
-    auto_execute_enabled: bool
+    #pending_code_to_execute_json: Optional[Dict[str, Any]]
+    #pending_whatif_code_to_execute_json: Optional[Dict[str, Any]] # Add if you have this state
+    #pending_focus_proposal_json: Optional[Dict[str, Any]] # Add if you have this state
+    #last_executed_plot_path: Optional[str] # This is the path
+    #auto_execute_enabled: bool
+    
+class SessionInfo(BaseModel):
+    session_uuid: str
+    created_at: datetime
+    last_accessed_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class SessionListResponse(BaseModel):
+    dataset_id: int
+    sessions: List[SessionInfo]

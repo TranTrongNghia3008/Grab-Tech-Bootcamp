@@ -115,3 +115,13 @@ def delete_expired_session_states(db: Session) -> int:
     # db.commit()
     logging.info(f"Placeholder for deleting expired sessions. Would delete {num_deleted} sessions.")
     return num_deleted
+
+def get_sessions_for_dataset(db: Session, dataset_id: int) -> List[ChatSessionState]:
+    """
+    Retrieves all ChatSessionState records associated with a given dataset_id.
+    Orders by last_accessed_at descending by default.
+    """
+    return db.query(ChatSessionState)\
+        .filter(ChatSessionState.dataset_id == dataset_id)\
+        .order_by(ChatSessionState.last_accessed_at.desc())\
+        .all()

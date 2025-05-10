@@ -307,15 +307,15 @@ async def get_db_session_state_endpoint( # Renamed function
     return chatbot_schemas.LoadedSessionResponse(
         dataset_id=db_session_orm.dataset_id,
         session_id=db_session_orm.session_uuid,
-        chat_history_json=db_session_orm.chat_history_json or [], # Send the AI history
+        #chat_history_json=db_session_orm.chat_history_json or [], # Send the AI history
         journey_log=journey_log_for_fe, # Send the formatted journey log
-        analysis_journey_log_json=db_session_orm.analysis_journey_log_json or [],
+        #analysis_journey_log_json=db_session_orm.analysis_journey_log_json or [],
         current_focus_filter=db_session_orm.current_focus_filter,
-        pending_code_to_execute_json=db_session_orm.pending_code_to_execute_json,
-        pending_whatif_code_to_execute_json=db_session_orm.pending_whatif_code_to_execute_json, # Add if present
-        pending_focus_proposal_json=db_session_orm.pending_focus_proposal_json, # Add if present
-        last_executed_plot_path=db_session_orm.last_executed_plot_path,
-        auto_execute_enabled=db_session_orm.auto_execute_enabled
+        #pending_code_to_execute_json=db_session_orm.pending_code_to_execute_json,
+        #pending_whatif_code_to_execute_json=db_session_orm.pending_whatif_code_to_execute_json, # Add if present
+        #pending_focus_proposal_json=db_session_orm.pending_focus_proposal_json, # Add if present
+        #last_executed_plot_path=db_session_orm.last_executed_plot_path,
+        #auto_execute_enabled=db_session_orm.auto_execute_enabled
     )
 
 
@@ -393,3 +393,37 @@ async def clear_db_session_history(
     else:
         logger.info(f"Attempted to clear history for non-existent/timed-out DB session: {session_uuid}")
         return # Idempotent if session doesn't exist
+    
+@router.get(
+    "/sessions/list/{dataset_id}", # Using "list" in the path for clarity
+    response_model=chatbot_schemas.SessionListResponse,
+    summary="List all chatbot sessions for a given dataset",
+    tags=["chatbot_sessions"] # Use your existing tag or a new one for session management
+)
+async def list_sessions_for_dataset(
+    dataset_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Retrieves a list of all session UUIDs and their metadata
+    associated with the provided `dataset_id`.
+    """
+    # First, verify the dataset itself exists (optional, but good practice)
+    db_dataset = crud_dataset.get(db, id=dataset_id) # Use your actual get_dataset method
+    if not db_dataset:
+        raise HTTPException(status_code=404, detail=f"Dataset with ID {dataset_id} not found.")
+
+    db_sessions = crud_chatbot_session.get_sessions_for_dataset(db, dataset_id=dataset_id)
+
+    if not db_sessions:
+        # Return an empty list if no sessions found, rather than 404,
+        # as it's valid for a dataset to have no sessions yet.
+        return chatbot_schemas.SessionListResponse(dataset_id=dataset_id, sessions=[])
+
+    # Convert ORM objects to Pydantic schema objects
+    session_infos = [chatbot_schemas.SessionInfo.from_orm(session) for session in db_sessions]
+    
+    return chatbot_schemas.SessionListResponse(
+        dataset_id=dataset_id,
+        sessions=session_infos
+    )
