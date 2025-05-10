@@ -36,7 +36,7 @@ class ChatSessionState(Base):
 class JourneyLogEntry(Base):
     __tablename__ = "journey_log_entries"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     chat_session_state_id = Column(Integer, ForeignKey("chatbot_session_states.id"), nullable=False, index=True) 
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
     event_type = Column(String, nullable=False) 

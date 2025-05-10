@@ -8,6 +8,7 @@ class Dataset(Base):
     __tablename__ = 'datasets'
     
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    project_name = Column(String, unique=True, nullable=True)
     connection_id = Column(Integer, ForeignKey("connections.id"), nullable=True)
     file_path = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

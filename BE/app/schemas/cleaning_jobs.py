@@ -12,8 +12,8 @@ class CleaningConfig(BaseModel):
     feature_scaling: bool = False
 
 class CleaningPreview(BaseModel):
-    missing: Dict[str, int]
-    outliers: Dict[str, int]
+    missing: int
+    outliers: int
     duplicates: int
 
 class CleaningStatus(BaseModel):

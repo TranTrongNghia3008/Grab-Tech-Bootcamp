@@ -131,9 +131,12 @@ def preview_cleaning(dataset_id: int, db: Session) -> dict:
 
     try:
         df = load_csv_as_dataframe(ds.file_path)
-        missing = df.isna().sum().to_dict()
-        outliers = {col: int(((df[col] - df[col].mean()).abs() > 3 * df[col].std()).sum())
-                    for col in df.select_dtypes(include='number')}
+        missing = int(df.isna().sum().sum())
+        outliers_per_col = {
+            col: int(((df[col] - df[col].mean()).abs() > 3 * df[col].std()).sum())
+            for col in df.select_dtypes(include="number")
+        }
+        outliers = sum(outliers_per_col.values())
         duplicates = int(df.duplicated().sum())
         logger.debug(f"Preview generated successfully for dataset_id: {dataset_id}")
         return {'missing': missing, 'outliers': outliers, 'duplicates': duplicates}

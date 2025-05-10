@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form, Query
 import io
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy import create_engine
 import pandas as pd
 from app.crud.datasets import DatasetCreateSchema, DatasetUpdateSchema
-from app.schemas.dataset import DatasetFromConnection, DatasetId, DatasetPreview
+from app.schemas.dataset import DatasetFromConnection, DatasetId, DatasetPreview, DatasetFlatListResponse, DatasetAnalysisReport
 
 # Import CRUD functions for datasets and connections
 from app.crud.datasets import crud_dataset
@@ -24,18 +25,21 @@ router = APIRouter(
 # --- Endpoint Definitions ---
 
 @router.post('/datasets/', response_model=DatasetId)
-async def upload_datasets(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def upload_datasets(project_name: str = Form(...), file: UploadFile = File(...), db: Session = Depends(get_db)):
     """
-    **Upload Dataset from CSV File**
+    **Upload Dataset from CSV File with a Project Name**
 
-    Initiates the process of creating a new dataset resource from an uploaded CSV file.
+    Initiates the process of creating a new dataset resource from an uploaded CSV file
+    and associates it with a project name.
 
     This endpoint performs the following actions sequentially:
     1.  Validates that the uploaded filename ends with `.csv`.
     2.  Asynchronously reads the raw byte content of the uploaded file.
     3.  Decodes the file content (assuming UTF-8).
     4.  Parses the decoded content into a pandas DataFrame using `pd.read_csv`.
-    5.  Creates an initial `Dataset` record in the database (without a file path yet) via `crud_dataset.create`.
+    5.  Creates an initial `Dataset` record in the database with the provided `project_name`
+        (without a file path yet) via `crud_dataset.create`.
+        *   If `project_name` is not unique (and the DB enforces it), a 409 Conflict is raised.
     6.  Constructs a filename for storage using the newly generated dataset ID (e.g., `dataset_{id}.csv`).
     7.  Saves the pandas DataFrame to the configured file storage as a CSV file using `save_dataframe_as_csv`.
         *   If file saving fails, the previously created database record (Step 5) is deleted (rollback).
@@ -43,6 +47,7 @@ async def upload_datasets(file: UploadFile = File(...), db: Session = Depends(ge
     9.  Returns the unique ID (`id`) of the successfully created dataset record.
 
     Args:
+        `project_name` (str): The name of the project for this dataset (sent as form-data).
         `file` (UploadFile): The CSV file being uploaded via form-data.
         `db` (Session): **Dependency:** Injected database session.
 
@@ -50,7 +55,9 @@ async def upload_datasets(file: UploadFile = File(...), db: Session = Depends(ge
         `HTTPException`:
             - `400`: If the filename does not end with `.csv`.
             - `400`: If the CSV file content cannot be decoded or parsed by pandas.
+            - `409`: If the `project_name` already exists (and is constrained to be unique).
             - `500`: If saving the DataFrame to the file storage fails after the initial DB record creation.
+            - `500`: For other database errors during dataset creation.
 
     Returns:
         `DatasetId`: An object containing the assigned `id` for the new dataset.
@@ -64,26 +71,50 @@ async def upload_datasets(file: UploadFile = File(...), db: Session = Depends(ge
         content = await file.read()
         decoded = content.decode('utf-8')
         df = pd.read_csv(io.StringIO(decoded))
+    except UnicodeDecodeError:
+        raise HTTPException(status_code=400, detail="Error decoding file: Ensure it's UTF-8 encoded.")
+    except pd.errors.ParserError as e:
+        raise HTTPException(status_code=400, detail=f"Error parsing CSV file: {e}")
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error reading CSV file: {e}")
 
     # 5. Create Initial Database Record
-    dataset_in_create = DatasetCreateSchema(connection_id=None)
-    ds = crud_dataset.create(db=db, obj_in=dataset_in_create)
+    dataset_in_create = DatasetCreateSchema(project_name=project_name,connection_id=None)
+    ds = None # Initialize ds to None
+    try:
+        ds = crud_dataset.create(db=db, obj_in=dataset_in_create)
+    except IntegrityError as e:
+        db.rollback() # Ensure the session is rolled back if your CRUD doesn't handle it
+        error_detail = str(e.orig).lower()
+        if "unique constraint" in error_detail and "project_name" in error_detail:
+            raise HTTPException(status_code=409, detail=f"Project name '{project_name}' already exists.")
+        else:
+            # For other IntegrityErrors or if the check is too broad
+            raise HTTPException(status_code=500, detail=f"Database integrity error: {e}")
+    except Exception as e: # Catch other potential errors during DB creation
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error creating dataset record in DB: {e}")
+
+    if not ds: # Should not happen if no exception was raised, but good for safety
+        raise HTTPException(status_code=500, detail="Failed to create dataset record, unknown error.")
 
     # 6. Construct filename
     filename = f"dataset_{ds.id}.csv"
+    filename_cleaned = f"dataset_{ds.id}_cleaned.csv"
 
     # 7. Save DataFrame to File Storage (with rollback)
+    saved_file_path = None
     try:
-        path = save_dataframe_as_csv(df, filename)
+        saved_file_path = save_dataframe_as_csv(df, filename)
+        save_dataframe_as_csv(df, filename_cleaned)
     except Exception as e:
         # Cleanup the created DB record if file saving fails
         crud_dataset.remove(db=db, id=ds.id)
+        db.commit() # If remove doesn't commit
         raise HTTPException(status_code=500, detail=f"Failed to save dataset file: {e}")
 
     # 8. Update Database Record with File Path
-    dataset_in_update = DatasetUpdateSchema(file_path=path)
+    dataset_in_update = DatasetUpdateSchema(file_path=saved_file_path, project_name=ds.project_name) # Pass existing project_name
     ds_updated = crud_dataset.update(db=db, db_obj=ds, obj_in=dataset_in_update)
 
     # 9. Return the Dataset ID
@@ -180,7 +211,7 @@ async def ingest_from_connection(payload: DatasetFromConnection, db: Session = D
     return DatasetId(id=ds_updated.id)
 
 @router.get('/datasets/{dataset_id}/preview', response_model=DatasetPreview)
-def get_dataset_preview(dataset_id: int):
+def get_dataset_preview(dataset_id: int, db: Session = Depends(get_db)):
     """
     **Get Preview of (Cleaned) Dataset Data**
 
@@ -223,7 +254,9 @@ def get_dataset_preview(dataset_id: int):
     # 4. Extract Preview DataFrame
     preview_df = result_df.head(preview_row).copy()
     # 5. Get Total Rows
-    total_row = len(result_df)
+    total_row, total_col = result_df.shape
+    
+    project_name = crud_dataset.get(db, id=dataset_id).project_name
 
     # 6, 7. Format Preview for Response
     try:
@@ -241,8 +274,72 @@ def get_dataset_preview(dataset_id: int):
     response_data = DatasetPreview(
         preview_data=preview_schema,
         preview_row=preview_row,
-        total_row=total_row
+        total_row=total_row,
+        total_col=total_col,
+        project_name=project_name
     )
 
     # 9. Return Response
     return response_data
+
+@router.get(
+    "/datasets/all-by-creation/", # New, more descriptive path
+    response_model=DatasetFlatListResponse,
+    summary="List ALL Datasets Ordered by Creation Date (Newest First)"
+)
+async def list_all_datasets_ordered_by_creation_date(
+    db: Session = Depends(get_db)
+):
+    """
+    **Retrieve a flat list of ALL datasets, ordered by their creation date (newest first).**
+
+    Each dataset entry includes:
+    - `id`: The dataset's unique identifier.
+    - `project_name`: The name of the project the dataset belongs to (if any).
+    - `created_at`: The timestamp when the dataset record was created.
+    """
+    # Fetch all datasets, ordered by created_at descending (newest first)
+    db_datasets = crud_dataset.get_all_datasets_ordered_by_creation(db=db, descending=True)
+
+    # Pydantic will convert each DatasetModel instance in db_datasets
+    # into a DatasetFlatInfo instance due to orm_mode=True.
+    return DatasetFlatListResponse(datasets=db_datasets)
+
+@router.get(
+    "/datasets/{dataset_id}/analysis-report/",
+    response_model=DatasetAnalysisReport,
+    summary="Get Detailed Analysis Report for a Dataset"
+)
+async def get_dataset_analysis_report(dataset_id: int, db: Session = Depends(get_db)):
+    """
+    **Retrieve a detailed analysis report for a specific dataset.**
+
+    The report includes:
+    - Overall dataset statistics: total records, total features, overall missing percentage.
+    - A data quality score (currently based on completeness).
+    - A list of all features (columns) with:
+        - `feature_name`: Name of the column.
+        - `dtype`: Inferred data type (e.g., integer, float, datetime, categorical/string).
+        - `missing_percentage`: Percentage of missing values in that column.
+        - `unique_percentage`: Percentage of unique values in that column relative to total records.
+
+    **Note:** The analysis attempts to use the 'cleaned' version of the dataset if available
+    (e.g., `dataset_{id}_cleaned.csv`), otherwise it uses the primary dataset file.
+    """
+    try:
+        report = crud_dataset.get_dataset_analysis(db=db, dataset_id=dataset_id)
+        if report is None: # If crud_dataset.get itself returned None for not found dataset
+            raise HTTPException(status_code=404, detail=f"Dataset with ID {dataset_id} not found.")
+        return report
+    except FileNotFoundError as e:
+        # This might be raised from load_csv_as_dataframe if file doesn't exist
+        raise HTTPException(status_code=404, detail=f"Dataset file for ID {dataset_id} not found: {e}")
+    except ValueError as e: # e.g., if dataset has no file_path from CRUD function
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e: # For other loading/processing errors from CRUD function
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        # Catch-all for unexpected errors
+        # Log this error for debugging
+        print(f"Unexpected error during dataset analysis for ID {dataset_id}: {e}")
+        raise HTTPException(status_code=500, detail="An unexpected error occurred while analyzing the dataset.")
