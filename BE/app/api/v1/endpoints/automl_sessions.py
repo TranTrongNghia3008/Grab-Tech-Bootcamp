@@ -8,6 +8,7 @@ from app.api.v1.dependencies import get_db
 from starlette.responses import StreamingResponse # Needed for CSV response
 import io # Needed for creating in-memory file for response
 from app.crud.finalized_models import crud_finalized_model
+from app.crud.datasets import crud_dataset
 import pandas as pd
 import base64
 
@@ -68,6 +69,7 @@ def start_automl_step1_endpoint(
         # Call the service function which contains all the logic
         result = automl_service.run_step1_setup_and_compare(db, params)
         # The service function returns the validated AutoMLSessionStep1Response object on success
+        crud_dataset.update_atomic(db, id=params.dataset_id, values={'is_model':True})
         return result
     except HTTPException as http_exc:
         # Re-raise HTTPExceptions (like 404 Not Found, 400 Bad Request, 500 Internal Server Error)

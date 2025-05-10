@@ -13,6 +13,7 @@ from app.services.cleaning_service import (
 )
 
 from app.crud.cleaning_jobs import crud_cleaning_job # Used in post_cleaning
+from app.crud.datasets import crud_dataset
 from app.utils.file_storage import load_csv_as_dataframe, get_file_path
 from app import schemas
 import pandas as pd
@@ -87,6 +88,7 @@ def post_cleaning(
 
     # 4. Retrieve the newly created job details
     job = crud_cleaning_job.get(db, job_id)
+    crud_dataset.update_atomic(db, id=dataset_id, values={'is_clean':True})
 
     # 5. Return the job details
     return job

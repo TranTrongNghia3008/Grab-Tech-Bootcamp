@@ -125,3 +125,21 @@ def get_sessions_for_dataset(db: Session, dataset_id: int) -> List[ChatSessionSt
         .filter(ChatSessionState.dataset_id == dataset_id)\
         .order_by(ChatSessionState.last_accessed_at.desc())\
         .all()
+        
+def get_latest_k_journey_log_entries(
+    db: Session,
+    chat_session_state_id: int, # Use the parent session's primary key
+    k: int
+) -> List[JourneyLogEntry]: # Or your FrontendJourneyLogEntry model name
+    """
+    Retrieves the latest k JourneyLogEntry records for a given chat_session_state_id,
+    ordered by timestamp descending.
+    """
+    if k <= 0:
+        return []
+        
+    return db.query(JourneyLogEntry)\
+        .filter(JourneyLogEntry.chat_session_state_id == chat_session_state_id)\
+        .order_by(JourneyLogEntry.timestamp.desc())\
+        .limit(k)\
+        .all()
