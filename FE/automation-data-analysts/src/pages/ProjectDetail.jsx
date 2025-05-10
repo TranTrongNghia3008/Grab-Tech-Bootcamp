@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { IoChevronBack } from "react-icons/io5";
 import { FaRobot, FaChartBar, FaFileExport, FaBrain } from "react-icons/fa";
 import { FiTool } from "react-icons/fi";
@@ -23,7 +23,7 @@ const tabs = [
 
 export default function ProjectDetail() {
   const { state } = useAppContext(); // Lấy state từ context
-  const { id } = useParams();
+  const { projectName } = state;
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("Overview");
 
@@ -51,7 +51,7 @@ export default function ProjectDetail() {
             <IoChevronBack />
           </button>
           <h1 className="text-2xl font-bold text-white whitespace-nowrap">
-            Project: {id}
+            Project: {projectName}
           </h1>
         </div>
 

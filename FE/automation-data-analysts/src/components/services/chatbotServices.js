@@ -6,9 +6,13 @@ export function startConversation(datasetId) {
     });
 }
 
+export function getSessionState(datasetId, sessionId) {
+    return apiClient(`/sessions/${datasetId}/state?session_id=${sessionId}`, {
+        method: "GET",
+    })
+}
+
 export function interactChatbot(datasetId, sessionId, query) {
-    // const formData = new FormData();
-    // formData.append("query", query);
     const payload = {
         "query": query
     }
@@ -16,4 +20,10 @@ export function interactChatbot(datasetId, sessionId, query) {
         method: "POST",
         body: payload
     })
+}
+
+export function getAllSessions(datasetId) {
+    return apiClient(`/sessions/list/${datasetId}`, {
+        method: "GET",
+    });
 }

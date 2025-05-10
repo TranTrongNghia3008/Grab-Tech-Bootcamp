@@ -10,6 +10,7 @@ export function AppProvider({ children }) {
   const [state, setState] = useState({
     datasetId: null,
     sessionId: null,
+    projectName: null,
     comparisonResults: {},
     tuningResults: null,
     predictedResults: null

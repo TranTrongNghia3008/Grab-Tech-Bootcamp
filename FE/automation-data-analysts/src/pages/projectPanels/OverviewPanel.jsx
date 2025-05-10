@@ -14,14 +14,9 @@ import { getPreviewIssues, cleaningDataset, getCleaningStatus } from "../../comp
 import { autoMLSession } from "../../components/services/modelingServices";
 import { getPreviewDataset } from "../../components/services/datasetService";
 
-
-
 export default function OverviewPanel({ setIsTargetFeatureSelected }) {
-  // const { state } = useAppContext(); 
   const { state, updateState } = useAppContext();
   const { datasetId } = state;
-  // const datasetId = 13; // Thay thế bằng datasetId thực tế từ context hoặc props
-  // const [showCleanModal, setShowCleanModal] = useState(false);
   const [cleanOptions, setCleanOptions] = useState({
     "remove_duplicates": true,
     "handle_missing_values": true,
@@ -55,7 +50,7 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
     const fetchPreviewDataset = async () => {
       try {
         const response = await getPreviewDataset(datasetId);
-        const { preview_data: previewData, total_row, filename } = response;
+        const { preview_data: previewData, project_name, total_col, total_row, filename } = response;
 
         const transformedData = previewData.data.map(row => {
           const obj = {};
@@ -64,11 +59,15 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
           });
           return obj;
         });
+
+        console.log(transformedData)
   
         setData(transformedData);
         setCsvFileName(filename || "dataset");
         setNumRows(total_row);
-        setNumColumns(transformedData[0] ? Object.keys(transformedData[0]).length : 0);
+        setNumColumns(total_col);
+
+        updateState({ projectName: project_name })
       } catch (error) {
         console.error("Failed to fetch preview dataset:", error);
       }
@@ -257,20 +256,26 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
                 <ul className="text-sm text-gray-700 space-y-2 pl-6 list-disc">
                   <li>
                     <span className="font-medium text-gray-800">Missing values:</span>{" "}
-                    {Object.entries(previewIssues.missing)
-                      .map(([col, count]) => `${col}: ${count}`)
-                      .join(", ")}
+                    {previewIssues?.missing && Object.keys(previewIssues.missing).length > 0
+                      ? Object.entries(previewIssues.missing)
+                          .map(([col, count]) => `${col}: ${count}`)
+                          .join(", ")
+                      : "None"}
                   </li>
                   <li>
                     <span className="font-medium text-gray-800">Outliers:</span>{" "}
-                    {Object.entries(previewIssues.outliers)
-                      .map(([col, count]) => `${col}: ${count}`)
-                      .join(", ")}
+                    {previewIssues?.outliers && Object.keys(previewIssues.outliers).length > 0
+                      ? Object.entries(previewIssues.outliers)
+                          .map(([col, count]) => `${col}: ${count}`)
+                          .join(", ")
+                      : "None"}
                   </li>
                   <li>
-                    <span className="font-medium text-gray-800">Duplicates:</span> {previewIssues.duplicates}
+                    <span className="font-medium text-gray-800">Duplicates:</span>{" "}
+                    {previewIssues?.duplicates > 0 ? previewIssues.duplicates : "None"}
                   </li>
                 </ul>
+
               </Card>
             ) : null}
 

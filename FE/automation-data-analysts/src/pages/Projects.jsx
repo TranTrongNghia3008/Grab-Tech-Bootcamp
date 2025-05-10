@@ -1,33 +1,38 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "../layout/MainLayout";
 import { Button, Card, Modal } from "../components/ui";
 import { ArrowDownAZ, ArrowUpAZ, Calendar, Pencil, Trash2 } from "lucide-react";
 import { FiFolder } from "react-icons/fi";
+import { useAppContext } from "../contexts/AppContext";
+import { getAllByCreation } from "../components/services/datasetService";
 
 export default function Projects() {
+  const { updateState } = useAppContext();
   const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
-  const [sortKey, setSortKey] = useState("updatedAt");
+  const [sortKey, setSortKey] = useState("created_at");
   const [sortDir, setSortDir] = useState("desc");
-  const [projects, setProjects] = useState([
-    { id: 1, name: "Customer Segmentation", updatedAt: "2024-04-20T10:00:00Z" },
-    { id: 2, name: "Sales Forecasting", updatedAt: "2024-04-15T14:30:00Z" },
-    { id: 3, name: "Churn Prediction", updatedAt: "2024-04-18T09:20:00Z" },
-    { id: 4, name: "Product Recommendation", updatedAt: "2024-04-17T11:45:00Z" },
-    { id: 5, name: "Market Basket Analysis", updatedAt: "2024-04-14T08:10:00Z" },
-    { id: 6, name: "Ad Click Prediction", updatedAt: "2024-04-13T16:00:00Z" },
-    { id: 7, name: "Social Media Sentiment", updatedAt: "2024-04-16T13:35:00Z" },
-    { id: 8, name: "Loan Default Risk", updatedAt: "2024-04-12T10:30:00Z" },
-    { id: 9, name: "Energy Consumption Forecast", updatedAt: "2024-04-11T07:15:00Z" },
-    { id: 10, name: "Fraud Detection", updatedAt: "2024-04-10T17:25:00Z" }
-  ]);
-
+  const [projects, setProjects] = useState([]);
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
   const [newName, setNewName] = useState("");
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const data = await getAllByCreation();
+        console.log("Fetched projects:", data);
+        setProjects(data.datasets); 
+      } catch (error) {
+        console.error("Failed to fetch projects:", error);
+      }
+    };
+
+    fetchProjects();
+  }, []);
 
   const handleCreateProject = () => navigate("/projects/create");
 
@@ -41,11 +46,11 @@ export default function Projects() {
   };
 
   const filteredProjects = projects
-    .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
+    .filter((p) => p.project_name.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {
       const valA = a[sortKey];
       const valB = b[sortKey];
-      if (sortKey === "updatedAt") {
+      if (sortKey === "created_at") {
         return sortDir === "asc"
           ? new Date(valA) - new Date(valB)
           : new Date(valB) - new Date(valA);
@@ -54,6 +59,32 @@ export default function Projects() {
         ? String(valA).localeCompare(String(valB))
         : String(valB).localeCompare(String(valA));
     });
+
+  function generateFakeTableData() {
+    const columns = ["Store", "Sales", "Region", "Date"];
+    const rows = Array.from({ length: 4 }, (_, i) => ({
+      Store: `S${i + 1}`,
+      Sales: (Math.random() * 10000).toFixed(2),
+      Region: ["North", "South", "East", "West"][Math.floor(Math.random() * 4)],
+      Date: new Date(Date.now() - i * 86400000).toLocaleDateString("en-GB")
+    }));
+    return { columns, rows };
+  }
+
+  function getRandomColor() {
+    const tailwindColors = [
+      "bg-blue-100 text-blue-800",
+      "bg-red-100 text-red-800",
+      "bg-green-100 text-green-800",
+      "bg-yellow-100 text-yellow-800",
+      "bg-purple-100 text-purple-800",
+      "bg-pink-100 text-pink-800",
+      "bg-indigo-100 text-indigo-800",
+      "bg-orange-100 text-orange-800"
+    ];
+    return tailwindColors[Math.floor(Math.random() * tailwindColors.length)];
+  }
+
 
   return (
     <MainLayout>
@@ -84,14 +115,14 @@ export default function Projects() {
 
           <button
             className={`flex items-center gap-1 px-3 py-1.5 rounded-md border transition
-              ${sortKey === "name"
+              ${sortKey === "project_name"
                 ? "bg-green-100 text-green-700 border-green-300"
                 : "border-transparent hover:bg-green-50"} 
               hover:cursor-pointer`}
-            onClick={() => handleSort("name")}
+            onClick={() => handleSort("project_name")}
           >
             Name
-            {sortKey === "name" &&
+            {sortKey === "project_name" &&
               (sortDir === "asc" ? (
                 <ArrowDownAZ size={14} className="text-green-600" />
               ) : (
@@ -101,75 +132,106 @@ export default function Projects() {
 
           <button
             className={`flex items-center gap-1 px-3 py-1.5 rounded-md border transition
-              ${sortKey === "updatedAt"
+              ${sortKey === "created_at"
                 ? "bg-green-100 text-green-700 border-green-300"
                 : "border-transparent hover:bg-green-50"} 
               hover:cursor-pointer`}
-            onClick={() => handleSort("updatedAt")}
+            onClick={() => handleSort("created_at")}
           >
-            Updated <Calendar size={14} className="text-green-600" />
+            Created <Calendar size={14} className="text-green-600" />
           </button>
         </div>
       </div>
 
       {/* Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
-        {filteredProjects.map((project) => (
-          <Card
-            key={project.id}
-            className="relative group border border-gray-200 shadow-sm rounded-lg p-4 hover:shadow-lg transition cursor-pointer bg-white"
-            onClick={() => {
-              localStorage.setItem("currentProject", JSON.stringify(project));
-              navigate("/project/" + project.id);
-            }}
-          >
-            {/* Project Name */}
-            <h2 className="font-semibold text-lg text-green-700 group-hover:text-green-800 line-clamp-1">
-              {project.name}
-            </h2>
+        {filteredProjects.map((project) => {
+          const { columns, rows } = generateFakeTableData();
+          const columnColors = getRandomColor();
 
-            {/* Time */}
-            <p className="text-xs text-gray-500 mt-1">
-              Last updated:&nbsp;
-              <span className="font-medium text-gray-600">
-                {new Date(project.updatedAt).toLocaleString("en-GB", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                })}
-              </span>
-            </p>
+          return (
+            <div
+              key={project.id}
+              className="relative group border border-gray-200 shadow-sm rounded-lg p-0 hover:shadow-lg transition-transform duration-300 hover:scale-101 cursor-pointer bg-white"
+              onClick={() => {
+                updateState({
+                  datasetId: project.id,
+                  projectName: project.project_name || "Untitled Project"
+                });
+                localStorage.setItem("currentProject", JSON.stringify(project));
+                navigate("/project/" + project.id);
+              }}
+            >
+              {/* Fake Table */}
+              <div className="text-[11px] border border-gray-200 rounded overflow-hidden mb-2">
+                <div className="grid grid-cols-4">
+                  {columns.map((col) => (
+                    <div key={col} className={`p-1 text-center ${columnColors}`}>
+                      {col}
+                    </div>
+                  ))}
+                </div>
+                {rows.map((row, rowIdx) => (
+                  <div key={rowIdx} className="grid grid-cols-4 even:bg-gray-50">
+                    {columns.map((col) => (
+                      <div key={col} className="p-1 text-center text-gray-700">{row[col]}</div>
+                    ))}
+                  </div>
+                ))}
+                <div className="absolute bottom-15 left-0 right-0 h-15 bg-gradient-to-t from-white to-transparent pointer-events-none" />
+              </div>
 
-            {/* Hover Actions */}
-            <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedProject(project);
-                  setNewName(project.name);
-                  setShowRenameModal(true);
-                }}
-                className="text-gray-500 hover:text-yellow-600 bg-white rounded-full p-1 shadow-sm hover:shadow-md transition"
-                title="Rename"
-              >
-                <Pencil size={16} />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedProject(project);
-                  setShowDeleteModal(true);
-                }}
-                className="text-gray-400 hover:text-red-600 bg-white rounded-full p-1 shadow-sm hover:shadow-md transition"
-                title="Delete"
-              >
-                <Trash2 size={16} />
-              </button>
+              <div className="px-4">
+                {/* Project Name */}
+                <h2 className="font-semibold text-lg text-green-700 group-hover:text-green-800 line-clamp-1">
+                  {project.project_name || "Untitled Project"}
+                </h2>
+
+                {/* Time */}
+                <p className="text-xs text-gray-500 mt-1 mb-2">
+                  Created at:&nbsp;
+                  <span className="font-medium text-gray-600">
+                    {new Date(project.created_at).toLocaleString("en-GB", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                    })}
+                  </span>
+                </p>
+              </div>
+
+              {/* Hover Actions */}
+              <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedProject(project);
+                    setNewName(project.name);
+                    setShowRenameModal(true);
+                  }}
+                  className="text-gray-500 hover:text-yellow-600 bg-white rounded-full p-1 shadow-sm hover:shadow-md transition"
+                  title="Rename"
+                >
+                  <Pencil size={16} />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedProject(project);
+                    setShowDeleteModal(true);
+                  }}
+                  className="text-gray-400 hover:text-red-600 bg-white rounded-full p-1 shadow-sm hover:shadow-md transition"
+                  title="Delete"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
             </div>
-          </Card>
-        ))}
+          );
+        })}
+
       </div>
 
 
@@ -192,7 +254,7 @@ export default function Projects() {
                   setProjects((prev) =>
                     prev.map((p) =>
                       p.id === selectedProject.id
-                        ? { ...p, name: newName, updatedAt: new Date().toISOString() }
+                        ? { ...p, name: newName, created_at: new Date().toISOString() }
                         : p
                     )
                   );

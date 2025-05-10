@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Send, Plus, Menu } from "lucide-react";
 import { useAppContext } from "../../contexts/AppContext";
-import { interactChatbot, startConversation } from "../../components/services/chatbotServices";
+import { getAllSessions, getSessionState, interactChatbot, startConversation } from "../../components/services/chatbotServices";
 
 export default function ChatbotPanel() {
     const { state } = useAppContext(); 
@@ -15,37 +15,66 @@ export default function ChatbotPanel() {
     const [editingConvId, setEditingConvId] = useState(null);
     const [editedName, setEditedName] = useState("");
     const chatEndRef = useRef();
-    const [sessionId, setSessionId] = useState(null);
+    // const [sessionId, setSessionId] = useState(null);
 
 
     useEffect(() => {
-        setTimeout(() => {
-        const mockConvs = [
-            { id: "conv1", name: "EDA Chat" },
-            { id: "conv2", name: "Model Talk" }
-        ];
-        setConversations(mockConvs);
-        setCurrentConv(mockConvs[0]);
-        }, 300);
-    }, []);
+        async function fetchConversations() {
+            try {
+            const res = await getAllSessions(datasetId);
+            const sessions = res.sessions
+            const formatted = sessions.map((s) => ({
+                id: s.session_uuid,
+                name: s.name || `💬 Chat ${s.session_uuid.slice(0, 6)}`,
+                sessionId: s.session_uuid,
+            }));
 
-    useEffect(() => {
-        if (!currentConv) return;
-
-        setTimeout(() => {
-        setHistory([
-            {
-            id: "m1",
-            question: "What is the average age?",
-            answer: "The average age is 30.5 years."
-            },
-            {
-            id: "m2",
-            question: "Which variable correlates with income?",
-            answer: "Age has a correlation of 0.65 with income."
+            setConversations(formatted);
+            if (formatted.length > 0) {
+                setCurrentConv(formatted[0]);
+                // setSessionId(formatted[0].sessionId);
             }
-        ]);
-        }, 300);
+            } catch (err) {
+                console.error("Failed to fetch sessions", err);
+            }
+        }
+
+        if (datasetId) fetchConversations();
+    }, [datasetId]);
+
+
+    useEffect(() => {
+        async function fetchConversation(conv) {
+            try {
+                const res = await getSessionState(datasetId, conv.sessionId);
+
+                const logs = res.journey_log;
+                const history = [];
+
+                for (let i = 0; i < logs.length; i++) {
+                if (logs[i].event_type === "USER_QUERY") {
+                    const userMsg = logs[i];
+                    const nextResponse = logs[i + 1];
+
+                    if (nextResponse && nextResponse.event_type === "TEXT_RESPONSE") {
+                    history.push({
+                        id: `msg-${i}`,
+                        question: userMsg.payload.content,
+                        answer: nextResponse.payload.content,
+                        timestamp: new Date(userMsg.timestamp).toLocaleString(),
+                    });
+                    i++; // Skip next because already processed
+                    }
+                }
+                }
+
+                setHistory(history);
+            } catch (err) {
+                console.error("Failed to load conversation history", err);
+                setHistory([]);
+            }
+        }
+        if (currentConv) fetchConversation(currentConv)
     }, [currentConv]);
 
     useEffect(() => {
@@ -53,7 +82,7 @@ export default function ChatbotPanel() {
     }, [history]);
 
     const handleSend = async () => {
-        if (!message.trim() || !sessionId || !currentConv) return;
+        if (!message.trim() || !currentConv) return;
 
         const newMessage = {
             id: Date.now().toString(),
@@ -66,7 +95,8 @@ export default function ChatbotPanel() {
         setLoading(true);
 
         try {
-            const res = await interactChatbot(datasetId, sessionId, message);
+            const sessionId = currentConv.id
+            const res = await interactChatbot(datasetId, sessionId , message);
             console.log("interactChatbot: ", res)
             const reply = res.responses?.[0]?.content || "No response";
 
@@ -91,19 +121,53 @@ export default function ChatbotPanel() {
         try {
             const res = await startConversation(datasetId);
             const newConv = {
-            id: res.session_id,
-            name: `💬 New Chat ${conversations.length + 1}`,
-            sessionId: res.session_id,
+                id: res.session_id,
+                name: `💬 New Chat ${conversations.length + 1}`,
+                sessionId: res.session_id,
             };
 
             setConversations((prev) => [...prev, newConv]);
-            // setCurrentConv(newConv);
-            setSessionId(res.session_id);
+            setCurrentConv(newConv);
+            // setSessionId(res.session_id);
             setHistory([]);
         } catch (err) {
             console.error("Failed to start new conversation", err);
         }
     };
+
+    // const handleClickConversation = async (conv) => {
+    //     setCurrentConv(conv);
+
+    //     try {
+    //         const res = await getSessionState(datasetId, conv.sessionId);
+
+    //         const logs = res.journey_log;
+    //         const history = [];
+
+    //         for (let i = 0; i < logs.length; i++) {
+    //         if (logs[i].event_type === "USER_QUERY") {
+    //             const userMsg = logs[i];
+    //             const nextResponse = logs[i + 1];
+
+    //             if (nextResponse && nextResponse.event_type === "TEXT_RESPONSE") {
+    //             history.push({
+    //                 id: `msg-${i}`,
+    //                 question: userMsg.payload.content,
+    //                 answer: nextResponse.payload.content,
+    //                 timestamp: new Date(userMsg.timestamp).toLocaleString(),
+    //             });
+    //             i++; // Skip next because already processed
+    //             }
+    //         }
+    //         }
+
+    //         setHistory(history);
+    //     } catch (err) {
+    //         console.error("Failed to load conversation history", err);
+    //         setHistory([]);
+    //     }
+    // };
+
 
     const handleDeleteConversation = (id) => {
         setConversations((prev) => prev.filter((c) => c.id !== id));
@@ -233,23 +297,26 @@ export default function ChatbotPanel() {
                 <div key={msg.id} className="space-y-2">
                     {/* User */}
                     <div className="flex items-start gap-3">
-                    <img
-                        src="/avatars/user.png" // ảnh user
-                        alt="User"
-                        className="w-7 h-7 rounded-full object-cover border border-gray-300"
-                    />
-                    <div className="bg-green-50 px-4 py-2 rounded-md text-sm flex-1 shadow-sm">
-                        <div className="flex justify-between items-start">
-                        <p className="text-green-600 font-medium">{msg.question}</p>
-                        <button
-                            onClick={() => handleDeleteMessage(msg.id)}
-                            className="text-xs text-red-400 hover:text-red-600 ml-2"
-                            title="Delete message"
-                        >
-                            ✕
-                        </button>
+                        <img
+                            src="/avatars/user.png" // ảnh user
+                            alt="User"
+                            className="w-7 h-7 rounded-full object-cover border border-gray-300"
+                        />
+                        <div className="bg-green-50 px-4 py-2 rounded-md text-sm flex-1 shadow-sm">
+                            <div className="text-xs text-gray-400 mb-1">
+                                {msg.timestamp}
+                            </div>
+                            <div className="flex justify-between items-start">
+                            <p className="text-green-600 font-medium">{msg.question}</p>
+                            <button
+                                onClick={() => handleDeleteMessage(msg.id)}
+                                className="text-xs text-red-400 hover:text-red-600 ml-2"
+                                title="Delete message"
+                            >
+                                ✕
+                            </button>
+                            </div>
                         </div>
-                    </div>
                     </div>
 
                     {/* Bot */}
@@ -260,6 +327,9 @@ export default function ChatbotPanel() {
                         className="w-7 h-7 rounded-full object-cover border border-gray-300"
                     />
                     <div className="bg-gray-100 px-4 py-2 rounded-md text-sm text-gray-800 flex-1 shadow-sm">
+                        <div className="text-xs text-gray-400 mb-1">
+                            {msg.timestamp}
+                        </div>
                         {msg.answer}
                     </div>
                     </div>

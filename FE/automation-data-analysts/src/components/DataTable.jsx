@@ -70,7 +70,11 @@ export default function DataTable({ data }) {
                   className="px-4 py-2 whitespace-nowrap w-[200px] min-w-[200px] border-r border-[#CDEBD5] text-[#1B1F1D]"
                 >
                   {React.isValidElement(row[col]) ? row[col] : (
-                    typeof row[col] === "number" ? row[col].toFixed(3) : row[col]
+                    typeof row[col] === "number"
+                      ? Number.isInteger(row[col])
+                        ? row[col]
+                        : row[col].toFixed(3)
+                      : row[col]
                   )}
                 </td>
               ))}

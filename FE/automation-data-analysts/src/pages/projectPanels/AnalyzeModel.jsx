@@ -53,6 +53,8 @@ export default function AnalyzeModel({ availableModels = [], sessionId = 1, imgP
     setLoadingBaselineModelEvaluation(true);
     try {
       const res = await getBaselineModelEvaluation(modelDetails);
+
+      console.log("getBaselineModelEvaluation ", res)
       
       setBaselineModelEvaluation(parseAISummary(res.summary_html)); 
     } catch (err) {

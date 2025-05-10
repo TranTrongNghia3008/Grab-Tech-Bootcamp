@@ -11,11 +11,11 @@ import { useAppContext } from "../../contexts/AppContext";
 import { getCorrelation, getSummaryStatistics } from "../../components/services/EDAServices";
 import { getAICorrelationMatrix, getAISummaryStatistics } from "../../components/services/aisummaryServices";
 import { parseAISummary } from "../../utils/parseHtml";
+import { getAnalysisReport } from "../../components/services/datasetService";
 
 export default function DataInsightPanel() {
   const { state } = useAppContext(); 
   const { datasetId } = state;
-  // const datasetId = 13; // Thay thế bằng datasetId thực tế từ context hoặc props
 
   const [stats, setStats] = useState(null);
   const [corr, setCorr] = useState(null);
@@ -28,6 +28,8 @@ export default function DataInsightPanel() {
   const [aiCorrelationMatrix, setAICorrelationMatrix] = useState(null);
   const [loadingAICorrelationMatrix, setLoadingCorrelationMatrix] = useState(false);
   const [featureData, setFeatureData] = useState([]);
+  const [overview, setOverview] = useState(null); // cho tổng quan
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -72,50 +74,37 @@ export default function DataInsightPanel() {
   }, [datasetId]);
 
   useEffect(() => {
-    // Giả lập gọi API với độ trễ
-    const timer = setTimeout(() => {
-      setFeatureData([
-        {
-          "Feature Name": "user_id",
-          "Type": "Integer",
-          "Missing Values": "0%",
-          "Unique Values": "100%",
-          "Actions": (
-            <FaEye
-              className="text-gray-600 hover:text-green-600 cursor-pointer mx-auto"
-              onClick={() => handleViewFeature("user_id")}
-            />
-          )
-        },
-        {
-          "Feature Name": "timestamp",
-          "Type": "DateTime",
-          "Missing Values": "0.1%",
-          "Unique Values": "95%",
-          "Actions": (
-            <FaEye
-              className="text-gray-600 hover:text-green-600 cursor-pointer mx-auto"
-              onClick={() => handleViewFeature("timestamp")}
-            />
-          )
-        },
-        {
-          "Feature Name": "category",
-          "Type": "Categorical",
-          "Missing Values": "1.2%",
-          "Unique Values": "15",
-          "Actions": (
-            <FaEye
-              className="text-gray-600 hover:text-green-600 cursor-pointer mx-auto"
-              onClick={() => handleViewFeature("category")}
-            />
-          )
-        },
-      ]);
-    }, 1500); // 1.5 giây
+    const fetchAnalysis = async () => {
+      try {
+        const res = await getAnalysisReport(datasetId);
+        setOverview({
+          totalRecords: res.total_records,
+          dataQuality: res.data_quality_score,
+          missingPercentage: res.overall_missing_percentage,
+        });
 
-    return () => clearTimeout(timer); // Dọn dẹp nếu unmount
-  }, []);
+        const features = res.features.map((f) => ({
+          "Feature Name": f.feature_name,
+          "Type": f.dtype.charAt(0).toUpperCase() + f.dtype.slice(1),
+          "Missing Values": `${f.missing_percentage}%`,
+          "Unique Values": `${f.unique_percentage}%`,
+          "Actions": (
+            <FaEye
+              className="text-gray-600 hover:text-green-600 cursor-pointer mx-auto"
+              onClick={() => handleViewFeature(f.feature_name)}
+            />
+          ),
+        }));
+
+        setFeatureData(features);
+      } catch (err) {
+        console.error("Failed to fetch analysis report:", err);
+      }
+    };
+
+    fetchAnalysis();
+  }, [datasetId]);
+
 
   const handleViewFeature = (featureName) => {
     console.log("Viewing details for:", featureName);
@@ -221,43 +210,52 @@ export default function DataInsightPanel() {
     <div className="space-y-6">
       <h2 className="text-xl font-bold">Exploratory Data Analysis</h2>
 
-      <Card>
-        <h3 className="text-gray-800 text-xl flex items-center gap-2">
-          <FiDatabase />
-          Dataset Overview
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {/* Total Records */}
-          <Card className="bg-gray-100">
-            <div className="flex justify-between text-gray-500 mb-3">
-              <p className="text-sm font-bold mb-1">Total Records</p>
-              <ImDatabase />
-            </div>
-            <p className="text-2xl font-bold text-gray-800 mb-1">1,234,567</p>
-            <p className="text-xs text-gray-600 mt-1">+2.5% from last week</p>
-          </Card>
+      {overview && (
+        <Card>
+          <h3 className="text-gray-800 text-xl flex items-center gap-2">
+            <FiDatabase />
+            Dataset Overview
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Total Records */}
+            <Card className="bg-gray-100">
+              <div className="flex justify-between text-gray-500 mb-3">
+                <p className="text-sm font-bold mb-1">Total Records</p>
+                <ImDatabase />
+              </div>
+              <p className="text-2xl font-bold text-gray-800 mb-1">
+                {overview.totalRecords.toLocaleString()}
+              </p>
+              <p className="text-xs text-gray-600 mt-1">Latest updated</p>
+            </Card>
 
-          {/* Data Quality Score */}
-          <Card className="bg-gray-100">
-            <div className="flex justify-between text-gray-500 mb-3">
-              <p className="text-sm font-bold mb-1">Data Quality Score</p>
-              <FaChartLine />
-            </div>
-            <p className="text-2xl font-bold text-gray-800 mb-1">94.8%</p>
-            <p className="text-xs text-gray-600 mt-1">High quality data</p>
-          </Card>
+            {/* Data Quality Score */}
+            <Card className="bg-gray-100">
+              <div className="flex justify-between text-gray-500 mb-3">
+                <p className="text-sm font-bold mb-1">Data Quality Score</p>
+                <FaChartLine />
+              </div>
+              <p className="text-2xl font-bold text-gray-800 mb-1">
+                {overview.dataQuality}%
+              </p>
+              <p className="text-xs text-gray-600 mt-1">Overall score</p>
+            </Card>
 
-          {/* Missing Values */}
-          <Card className="bg-gray-100">
-            <div className="flex justify-between text-gray-500 mb-3">
-              <p className="text-sm font-bold mb-1">Missing Values</p>
-              <IoIosWarning />
-            </div>
-            <p className="text-2xl font-bold text-gray-800 mb-1">2.3%</p>
-            <p className="text-xs text-gray-600 mt-1">Within acceptable range</p>
-          </Card>
-        </div>
-      </Card>
+            {/* Missing Values */}
+            <Card className="bg-gray-100">
+              <div className="flex justify-between text-gray-500 mb-3">
+                <p className="text-sm font-bold mb-1">Missing Values</p>
+                <IoIosWarning />
+              </div>
+              <p className="text-2xl font-bold text-gray-800 mb-1">
+                {overview.missingPercentage}%
+              </p>
+              <p className="text-xs text-gray-600 mt-1">Missing rate</p>
+            </Card>
+          </div>
+        </Card>
+      )}
+
 
       {featureData && (
         <Card>

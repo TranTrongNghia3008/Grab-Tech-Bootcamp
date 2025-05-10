@@ -52,8 +52,10 @@ export function getBaselineModelEvaluation( {metrics, featureImageUrl = null}) {
     const formData = new FormData();
     formData.append("metrics_data_json", JSON.stringify(metrics)); 
 
+    console.log(featureImageUrl)
+
     if (featureImageUrl) {
-        formData.append("feature_importance_image_path", featureImageUrl);
+        formData.append("feature_importance_image_path", `../FE/automation-data-analysts/public/${featureImageUrl}`);
     }
 
     return apiClient("/v1/baseline-model-evaluation", {
