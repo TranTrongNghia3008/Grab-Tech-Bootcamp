@@ -9,3 +9,9 @@ export function upLoadDataset(file) {
     body: formData,
   });
 }
+
+export function getPreviewDataset(datasetId) {
+  return apiClient(`/v1/datasets/${datasetId}/preview`, {
+    method: "GET"
+  })
+}

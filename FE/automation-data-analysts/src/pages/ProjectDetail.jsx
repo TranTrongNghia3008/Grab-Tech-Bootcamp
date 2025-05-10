@@ -31,7 +31,7 @@ export default function ProjectDetail() {
   const [isTargetFeatureSelected, setIsTargetFeatureSelected] = useState(false);
 
   const handleTabClick = (tabLabel) => {
-    if (!isTargetFeatureSelected && ["Data Insight", "Modeling", "Export"].includes(tabLabel)) {
+    if (!isTargetFeatureSelected && ["Modeling", "Export"].includes(tabLabel)) {
       return; // Không cho chuyển nếu chưa chọn target/feature
     }
     setActiveTab(tabLabel);
@@ -59,7 +59,7 @@ export default function ProjectDetail() {
         <div className="flex items-center gap-4">
           <div className="inline-flex bg-[#E4F3E9] rounded-xl shadow-inner px-2 py-1 overflow-x-auto">
             {tabs.map((tab) => {
-              const isDisabled = !isTargetFeatureSelected && ["Data Insight", "Modeling", "Export"].includes(tab.label);
+              const isDisabled = !isTargetFeatureSelected && ["Modeling", "Export"].includes(tab.label);
               return (
                 <button
                   key={tab.label}

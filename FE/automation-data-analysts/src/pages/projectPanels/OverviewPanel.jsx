@@ -13,6 +13,7 @@ import SetupModelModal from "./SetupModelModal";
 import { useAppContext } from "../../contexts/AppContext";
 import { getPreviewIssues, cleaningDataset, getCleaningStatus } from "../../components/services/cleaningServices";
 import { autoMLSession } from "../../components/services/modelingServices";
+import { getPreviewDataset } from "../../components/services/datasetService";
 
 
 
@@ -51,17 +52,30 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
   const [stepModal, setStepModal] = useState(0); 
   const [note, setNote] = useState(<>Confirm that this is your dataset. Click <strong>Next</strong> to review and prepare it for training.</>)
 
-  useEffect(() => {
-    setData(mockData);
-    setCsvFileName("file_name.csv");
-    setNumRows(mockData.length);
-    setNumColumns(mockData[0] ? Object.keys(mockData[0]).length : 0);
-
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "auto";
-    };
-  }, []);
+  // useEffect(() => {
+  //   const fetchPreviewDataset = async () => {
+  //     try {
+  //       const response = await getPreviewDataset(datasetId);
+  //       const { data: previewData, filename } = response;
+  
+  //       setData(previewData);
+  //       setCsvFileName(filename || "dataset.csv");
+  //       setNumRows(previewData.length);
+  //       setNumColumns(previewData[0] ? Object.keys(previewData[0]).length : 0);
+  //     } catch (error) {
+  //       console.error("Failed to fetch preview dataset:", error);
+  //     }
+  //   };
+  
+  //   fetchPreviewDataset();
+  
+  //   // Prevent scroll while modals are open
+  //   document.body.style.overflow = "hidden";
+  //   return () => {
+  //     document.body.style.overflow = "auto";
+  //   };
+  // }, [datasetId]);
+  
 
   useEffect(() => {
     const fetchPreviewIssues = async () => {
@@ -97,18 +111,6 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
     }
   }, [cleanStatus, analyzingStatus]);
 
-  // const handlePreviewIssues = async () => {
-  //   if (showPreviewIssues) {
-  //     setShowPreviewIssues(false);
-  //     return;
-  //   }
-  //   setPreviewLoading(true);
-  //   setShowPreviewIssues(true);
-  //   const results = await getPreviewIssues(datasetId);
-  //   setPreviewLoading(false);
-  //   setPreviewIssues(results);
-  // };
-
   const handleCleanData = async () => {
     // setShowCleanModal(false);
     setCleanStatus("pending");
@@ -137,10 +139,6 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
           clearInterval(intervalId);
         }
       }, 2000); 
-
-      // const resultsPreviewIssue = await getPreviewIssues(datasetId);
-      // setPreviewIssues(resultsPreviewIssue);
-  
     } catch (error) {
       console.error("Cleaning failed:", error);
       setCleanStatus("failed");
@@ -204,63 +202,10 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
         <div className="bg-green-50 border border-green-200 px-4 py-3 rounded-md text-xl text-green-900 shadow-sm">
           {note}
         </div>
-
-
-        {/* <div className="flex gap-4">
-          <Button onClick={handlePreviewIssues} variant="primary">
-            <div className="flex items-center gap-2">
-              <FaSearch />
-              Preview Detected Issues
-            </div>
-          </Button>
-          <Button onClick={() => setShowCleanModal(true)} variant="outline">
-            <div className="flex items-center gap-2">
-              <FaSync />
-              Clean Data
-            </div>
-          </Button>
-        </div> */}
       </div>
 
-      
-
-      {/* Preview Issues */}
-      
-
       {/* Table */}
-      <DataTable data={data} />
-
-      {/* Clean Modal */}
-      {/* {showCleanModal && (
-        <Modal onClose={() => setShowCleanModal(false)} title="Cleaning Options">
-          <div className="space-y-5 text-sm text-gray-800">
-            <div className="space-y-3">
-              {Object.keys(cleanOptions).map((key) => (
-                <label key={key} className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    className="accent-green-600 h-4 w-4"
-                    checked={cleanOptions[key]}
-                    onChange={(e) =>
-                      setCleanOptions({ ...cleanOptions, [key]: e.target.checked })
-                    }
-                  />
-                  <span>{key.replace(/_/g, " ")}</span>
-                </label>
-              ))}
-            </div>
-
-            <div className="pt-4 text-right">
-              <Button onClick={handleCleanData} variant="primary">
-                <div className="flex items-center gap-2">
-                  <FaRocket />
-                  Start Cleaning
-                </div>
-              </Button>
-            </div>
-          </div>
-        </Modal>
-      )} */}
+      {/* <DataTable data={data} /> */}
 
       {/* Toast */}
       {showToast && cleanStatus === "completed" && (
@@ -293,24 +238,11 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
               <div className="bg-green-50 border border-green-200 px-4 py-3 rounded-md text-sm text-green-900 shadow-sm w-full">
                 Oops.. We found some issues in your uploaded dataset.
               </div>
-              {/* <Button onClick={handlePreviewIssues} variant="primary">
-                <div className="flex items-center gap-2">
-                  <FaSearch />
-                  
-                </div>
-              </Button> */}
             </div>
             {previewLoading && showPreviewIssues ? (
               <p className="text-gray-500">Detecting issues in your dataset...</p>
             ) : showPreviewIssues && previewIssues ? (
               <Card className="relative bg-white border border-yellow-400 rounded-md shadow-sm p-6 mb-6">
-                {/* <button
-                  onClick={() => setShowPreviewIssues(false)}
-                  className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 transition"
-                  aria-label="Close preview"
-                >
-                  &times;
-                </button> */}
                 <div className="flex items-center mb-4">
                   <FaExclamationTriangle className="text-yellow-500 text-xl mr-2" />
                   <h3 className="text-lg font-semibold text-yellow-700">Data Quality Issues Detected</h3>
@@ -356,7 +288,6 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
               </div>
 
               <div className="ms-7 space-y-4">
-                {/* ✅ Checkbox Default */}
                 <label className="flex items-center gap-3 font-semibold">
                   <input
                     type="checkbox"
@@ -369,12 +300,10 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
                       if (checked) {
                         setCleanOptions((prev) => {
                           const updated = { ...prev };
-                          // ✅ Tick mặc định 3 mục
                           updated.remove_duplicates = true;
                           updated.handle_missing_values = true;
                           updated.handle_outliers = true;
 
-                          // ❌ Bỏ tick các mục khác
                           Object.keys(updated).forEach((key) => {
                             if (!["remove_duplicates", "handle_missing_values", "handle_outliers"].includes(key)) {
                               updated[key] = false;
@@ -389,8 +318,6 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
                   Use default clean options
                 </label>
 
-
-                {/* ✅ Render từng option */}
                 {Object.keys(cleanOptions).map((key) => {
                   const isDefault = ["remove_duplicates", "handle_missing_values", "handle_outliers"].includes(key);
                   const isDisabled = !isDefault && isDefaultChecked;
