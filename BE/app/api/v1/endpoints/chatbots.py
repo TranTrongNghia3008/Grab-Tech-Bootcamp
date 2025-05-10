@@ -12,6 +12,7 @@ from app.crud import chatbot_sessions as crud_chatbot_session
 from app.schemas import chatbots as chatbot_schemas
 from app.services.chatbot_service import ChatbotService #ChatbotService
 from app.db.models.chatbot_sessions import ChatSessionState, JourneyLogEntry
+DEFAULT_LATEST_K_JOURNEY_LOGS = 1
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -316,6 +317,45 @@ async def get_db_session_state_endpoint( # Renamed function
         #pending_focus_proposal_json=db_session_orm.pending_focus_proposal_json, # Add if present
         #last_executed_plot_path=db_session_orm.last_executed_plot_path,
         #auto_execute_enabled=db_session_orm.auto_execute_enabled
+    )
+    
+@router.get(
+    "/sessions/{dataset_id}/state/latest",
+    response_model=chatbot_schemas.LoadedSessionResponse,
+    tags=["chatbot_session_db"]
+)
+async def get_db_session_k_state_endpoint(
+    dataset_id: int,
+    session_manager: DBSessionManager = Depends(),
+    db: Session = Depends(get_db),
+    k: int = Query(DEFAULT_LATEST_K_JOURNEY_LOGS, ge=1, le=100, description="Number of latest journey log entries to retrieve.") # Optional query param k
+):
+    session_uuid = session_manager._resolve_session_uuid(generate_if_missing=False)
+
+    db_session_orm = crud_chatbot_session.get_active_session_state(db, dataset_id, session_uuid)
+    
+    if not db_session_orm:
+        raise HTTPException(status_code=404, detail="Session not found or has expired.")
+
+    # Fetch the latest k journey log entries using the new CRUD function
+    latest_k_journey_entries_orm = []
+    if k and k > 0: # Only fetch if k is provided and positive
+        latest_k_journey_entries_orm = crud_chatbot_session.get_latest_k_journey_log_entries(
+            db, chat_session_state_id=db_session_orm.id, k=k
+        )
+        latest_k_journey_entries_orm.reverse()
+
+
+    journey_log_for_fe = [
+        chatbot_schemas.JourneyLogEntryResponse.from_orm(entry) 
+        for entry in latest_k_journey_entries_orm
+    ]
+
+    return chatbot_schemas.LoadedSessionResponse(
+        dataset_id=db_session_orm.dataset_id,
+        session_id=db_session_orm.session_uuid,
+        journey_log=journey_log_for_fe, # This now contains the latest k entries (oldest of them first)
+        current_focus_filter=db_session_orm.current_focus_filter,
     )
 
 

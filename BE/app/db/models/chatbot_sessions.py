@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, JSON, Text, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, JSON, Text, Boolean, event
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base # Your SQLAlchemy Base
@@ -9,6 +9,7 @@ class ChatSessionState(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     dataset_id = Column(Integer, ForeignKey("datasets.id"), nullable=False, index=True)
     session_uuid = Column(String, unique=True, index=True, nullable=False) # The client-facing session ID
+    chat_name = Column(String, unique=True, nullable=True)
     
     # Store complex Python objects as JSON strings or use database-native JSON types
     chat_history_json = Column(JSON, nullable=True) # Stores the list of history dicts
@@ -32,6 +33,16 @@ class ChatSessionState(Base):
         cascade="all, delete-orphan",
         order_by="JourneyLogEntry.timestamp"
     )
+    
+@event.listens_for(ChatSessionState, "after_insert")
+def set_chat_name(mapper, connection, target):
+    if not target.chat_name:
+        new_chat_name = f"Chat {target.id}"
+        connection.execute(
+            ChatSessionState.__table__.update()
+            .where(ChatSessionState.id == target.id)
+            .values(chat_name=new_chat_name)
+        )
     
 class JourneyLogEntry(Base):
     __tablename__ = "journey_log_entries"

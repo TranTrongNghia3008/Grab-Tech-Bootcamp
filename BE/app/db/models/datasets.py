@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean
 from sqlalchemy.sql import func
 from sqlalchemy import DateTime
 from sqlalchemy.orm import relationship
@@ -12,6 +12,9 @@ class Dataset(Base):
     connection_id = Column(Integer, ForeignKey("connections.id"), nullable=True)
     file_path = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    is_model = Column(Boolean, nullable=True, default=False)
+    is_clean = Column(Boolean, nullable=True, default=False)
+    
     
     connections = relationship("Connection", back_populates="datasets")
     cleaning_jobs = relationship('CleaningJob', back_populates='datasets', cascade='all, delete-orphan')

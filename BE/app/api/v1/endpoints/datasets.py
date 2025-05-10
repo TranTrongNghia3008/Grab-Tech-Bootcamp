@@ -297,6 +297,8 @@ async def list_all_datasets_ordered_by_creation_date(
     - `id`: The dataset's unique identifier.
     - `project_name`: The name of the project the dataset belongs to (if any).
     - `created_at`: The timestamp when the dataset record was created.
+    - `is_model`: Check if the dataset was trained or not
+    - `is_clean`: Check if the dataset was cleaned or not
     """
     # Fetch all datasets, ordered by created_at descending (newest first)
     db_datasets = crud_dataset.get_all_datasets_ordered_by_creation(db=db, descending=True)

@@ -34,6 +34,8 @@ class DatasetFlatInfo(BaseModel):
     id: int  # Corresponds to Dataset.id in your SQLAlchemy model
     project_name: Optional[str] # Corresponds to Dataset.project_name
     created_at: datetime # Corresponds to Dataset.created_at
+    is_model: Optional[bool]
+    is_clean: Optional[bool]
 
     class Config:
         from_attributes = True # Allows easy mapping from SQLAlchemy model instances
