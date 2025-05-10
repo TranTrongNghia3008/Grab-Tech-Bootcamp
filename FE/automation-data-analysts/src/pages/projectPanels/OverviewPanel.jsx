@@ -4,7 +4,6 @@ import { FaTableCells } from "react-icons/fa6";
 import { FaSearch, FaRocket, FaSync, FaExclamationTriangle, FaArrowRight } from "react-icons/fa";
 import { Tooltip } from 'react-tooltip';
 import Modal from "../../components/ui/Modal";
-import mockData from "../../components/mock/sampleData.json"; 
 import DataTable from "../../components/DataTable";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
@@ -41,7 +40,7 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
   const [cleanStatus, setCleanStatus] = useState(null);
   const [showToast, setShowToast] = useState(false);
   const [data, setData] = useState([]);
-  const [csvFileName, setCsvFileName] = useState('data.csv');
+  const [csvFileName, setCsvFileName] = useState('dataset');
   const [numRows, setNumRows] = useState(0);
   const [numColumns, setNumColumns] = useState(0);
 
@@ -52,29 +51,37 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
   const [stepModal, setStepModal] = useState(0); 
   const [note, setNote] = useState(<>Confirm that this is your dataset. Click <strong>Next</strong> to review and prepare it for training.</>)
 
-  // useEffect(() => {
-  //   const fetchPreviewDataset = async () => {
-  //     try {
-  //       const response = await getPreviewDataset(datasetId);
-  //       const { data: previewData, filename } = response;
+  useEffect(() => {
+    const fetchPreviewDataset = async () => {
+      try {
+        const response = await getPreviewDataset(datasetId);
+        const { preview_data: previewData, total_row, filename } = response;
+
+        const transformedData = previewData.data.map(row => {
+          const obj = {};
+          previewData.columns.forEach((col, idx) => {
+            obj[col] = row[idx];
+          });
+          return obj;
+        });
   
-  //       setData(previewData);
-  //       setCsvFileName(filename || "dataset.csv");
-  //       setNumRows(previewData.length);
-  //       setNumColumns(previewData[0] ? Object.keys(previewData[0]).length : 0);
-  //     } catch (error) {
-  //       console.error("Failed to fetch preview dataset:", error);
-  //     }
-  //   };
+        setData(transformedData);
+        setCsvFileName(filename || "dataset");
+        setNumRows(total_row);
+        setNumColumns(transformedData[0] ? Object.keys(transformedData[0]).length : 0);
+      } catch (error) {
+        console.error("Failed to fetch preview dataset:", error);
+      }
+    };
   
-  //   fetchPreviewDataset();
+    fetchPreviewDataset();
   
-  //   // Prevent scroll while modals are open
-  //   document.body.style.overflow = "hidden";
-  //   return () => {
-  //     document.body.style.overflow = "auto";
-  //   };
-  // }, [datasetId]);
+    // Prevent scroll while modals are open
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, [datasetId]);
   
 
   useEffect(() => {
@@ -205,7 +212,7 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
       </div>
 
       {/* Table */}
-      {/* <DataTable data={data} /> */}
+      <DataTable data={data} />
 
       {/* Toast */}
       {showToast && cleanStatus === "completed" && (

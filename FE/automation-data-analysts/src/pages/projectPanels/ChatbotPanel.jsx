@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Send, Plus, Menu } from "lucide-react";
+import { useAppContext } from "../../contexts/AppContext";
+import { interactChatbot, startConversation } from "../../components/services/chatbotServices";
 
 export default function ChatbotPanel() {
-    //   const datasetId = 123;
+    const { state } = useAppContext(); 
+    const { datasetId } = state;
     const [conversations, setConversations] = useState([]);
     const [currentConv, setCurrentConv] = useState(null);
     const [history, setHistory] = useState([]);
@@ -12,6 +15,8 @@ export default function ChatbotPanel() {
     const [editingConvId, setEditingConvId] = useState(null);
     const [editedName, setEditedName] = useState("");
     const chatEndRef = useRef();
+    const [sessionId, setSessionId] = useState(null);
+
 
     useEffect(() => {
         setTimeout(() => {
@@ -47,37 +52,57 @@ export default function ChatbotPanel() {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [history]);
 
-    const handleSend = () => {
-        if (!message.trim()) return;
+    const handleSend = async () => {
+        if (!message.trim() || !sessionId || !currentConv) return;
 
         const newMessage = {
-        id: Date.now().toString(),
-        question: message,
-        answer: "Thinking..."
+            id: Date.now().toString(),
+            question: message,
+            answer: "Thinking..."
         };
 
         setHistory((prev) => [...prev, newMessage]);
         setMessage("");
         setLoading(true);
 
-        setTimeout(() => {
-        setHistory((prev) =>
+        try {
+            const res = await interactChatbot(datasetId, sessionId, message);
+            console.log("interactChatbot: ", res)
+            const reply = res.responses?.[0]?.content || "No response";
+
+            setHistory((prev) =>
             prev.map((msg) =>
-            msg.id === newMessage.id ? { ...msg, answer: "Response to: " + message } : msg
+                msg.id === newMessage.id ? { ...msg, answer: reply } : msg
             )
-        );
-        setLoading(false);
-        }, 1000);
+            );
+        } catch (err) {
+            console.error("Failed to get chatbot response", err);
+            setHistory((prev) =>
+            prev.map((msg) =>
+                msg.id === newMessage.id ? { ...msg, answer: "Error getting response." } : msg
+            )
+            );
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleNewConversation = () => {
-        const newConv = {
-        id: "conv" + Date.now(),
-        name: `💬 New Chat ${conversations.length + 1}`
-        };
-        setConversations((prev) => [...prev, newConv]);
-        setCurrentConv(newConv);
-        setHistory([]);
+    const handleNewConversation = async () => {
+        try {
+            const res = await startConversation(datasetId);
+            const newConv = {
+            id: res.session_id,
+            name: `💬 New Chat ${conversations.length + 1}`,
+            sessionId: res.session_id,
+            };
+
+            setConversations((prev) => [...prev, newConv]);
+            // setCurrentConv(newConv);
+            setSessionId(res.session_id);
+            setHistory([]);
+        } catch (err) {
+            console.error("Failed to start new conversation", err);
+        }
     };
 
     const handleDeleteConversation = (id) => {
@@ -267,4 +292,3 @@ export default function ChatbotPanel() {
         </div>
     );
 }
-//         </div>
