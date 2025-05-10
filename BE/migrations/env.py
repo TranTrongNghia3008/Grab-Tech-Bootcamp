@@ -12,6 +12,7 @@ import app.db.models.cleaning_jobs
 import app.db.models.connections
 import app.db.models.automl_sessions
 import app.db.models.finalized_models
+import app.db.models.chatbot_sessions
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

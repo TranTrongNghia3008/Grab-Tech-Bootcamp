@@ -10,6 +10,7 @@ from .cleaning_jobs import CleaningJob
 from .datasets import Dataset
 from .automl_sessions import AutoMLSession
 from .finalized_models import FinalizedModel # Assuming you have this model
+from .chatbot_sessions import ChatSessionState 
  # Assuming you have this model
 
 # Optional: You can define __all__ if you want to control what 'from app.db.models import *' imports

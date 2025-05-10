@@ -16,11 +16,13 @@ import webbrowser # To open plots
 import platform # Potentially for OS-specific features (imported but not heavily used)
 import time # For retry delay
 from PIL import Image # For plot analysis
+from google.ai.generativelanguage_v1beta.types.content import Content
+from google.ai.generativelanguage_v1beta.types.content import Part
 
 # --- Configuration Constants (can be overridden in __init__) ---
 DEFAULT_CSV_FILE_PATH = 'supermarket_sales.csv'
 DEFAULT_MODEL_NAME = 'gemini-2.5-flash-preview-04-17' # Updated model name
-DEFAULT_SAVE_PLOTS_DIR = 'plots'
+DEFAULT_SAVE_PLOTS_DIR = '../FE/automation-data-analysts/public/plots'
 DEFAULT_MAX_UNIQUE_VALUES_FOR_CONTEXT = 20
 DEFAULT_LOG_LEVEL = 'INFO'
 DEFAULT_PLOT_FILENAME_PLACEHOLDER = 'generated_plot.png' # Placeholder AI uses
@@ -34,7 +36,7 @@ DEFAULT_SAMPLE_SIZE_FOR_STATS = 25000
 
 class ChatbotService:
     def __init__(self,
-                 csv_file_path: str = DEFAULT_CSV_FILE_PATH,
+                 csv_file_path: str,
                  model_name: str = DEFAULT_MODEL_NAME,
                  save_plots_dir: str = DEFAULT_SAVE_PLOTS_DIR,
                  api_key: Optional[str] = None,
@@ -46,7 +48,16 @@ class ChatbotService:
                  max_journey_items: int = DEFAULT_MAX_JOURNEY_ITEMS,
                  num_starter_questions: int = DEFAULT_NUM_STARTER_QUESTIONS,
                  max_rows_for_full_context_stats: int = DEFAULT_MAX_ROWS_FOR_FULL_CONTEXT_STATS,
-                 sample_size_for_stats: int = DEFAULT_SAMPLE_SIZE_FOR_STATS
+                 sample_size_for_stats: int = DEFAULT_SAMPLE_SIZE_FOR_STATS,
+                 # --- Parameters for hydrating state ---
+                 initial_chat_history: Optional[List[Dict[str, Any]]] = None,
+                 initial_journey_log: Optional[List[Dict[str, Any]]] = None,
+                 initial_focus_filter: Optional[str] = None,
+                 initial_pending_code: Optional[Dict[str, Any]] = None,
+                 initial_pending_whatif: Optional[Dict[str, Any]] = None,
+                 initial_pending_focus_proposal: Optional[Dict[str, Any]] = None,
+                 initial_last_plot_path: Optional[str] = None,
+                 initial_auto_execute_enabled: bool = True # Default to True
                  ):
 
         self.csv_file_path = csv_file_path
@@ -60,6 +71,7 @@ class ChatbotService:
         self.num_starter_questions = num_starter_questions
         self.max_rows_for_full_context_stats = max_rows_for_full_context_stats
         self.sample_size_for_stats = sample_size_for_stats
+        self.last_executed_plot_path = initial_last_plot_path
 
         self._setup_logging(log_level)
         os.makedirs(self.save_plots_dir, exist_ok=True)
@@ -77,20 +89,99 @@ class ChatbotService:
         self.data_context_string = self._get_enhanced_data_context(self.df_main, self.max_unique_for_context)
         
         self.model = genai.GenerativeModel(self.model_name)
-        self.chat_session = self._initialize_chat_session()
-        logging.info(f"ChatbotService initialized with model {self.model_name} and data {os.path.basename(csv_file_path)}.")
-
-        # State variables
-        self.current_focus_filter: Optional[str] = None
-        self.analysis_journey_log: List[Dict[str, str]] = []
-        self.auto_execute_enabled: bool = True # Default to False for safety
         
-        # For handling multi-step interactions
-        self.pending_code_to_execute: Optional[Dict[str, Any]] = None # {code, original_query, is_plot}
-        self.pending_whatif_code_to_execute: Optional[Dict[str, Any]] = None # {code, original_query}
-        self.pending_focus_proposal: Optional[Dict[str, Any]] = None # {filter_condition, impact_assessment, ai_review}
-        self.last_executed_plot_path: Optional[str] = None
+        if initial_chat_history:
+            try:
+                self.chat_session = self.model.start_chat(history=initial_chat_history)
+                logging.info(f"ChatbotService initialized WITH existing chat history (length {len(initial_chat_history)}) for {os.path.basename(csv_file_path)}.")
+            except Exception as e:
+                logging.error(f"Error initializing chat with existing history: {e}. Falling back to new chat.", exc_info=True)
+                self.chat_session = self._initialize_chat_session() # Fallback
+        else:
+            self.chat_session = self._initialize_chat_session()
+            logging.info(f"ChatbotService initialized with NEW chat session for {os.path.basename(csv_file_path)}.")
+        
+        # Corrected State variable initialization:
+        self.current_focus_filter: Optional[str] = initial_focus_filter
+        self.analysis_journey_log: List[Dict[str, Any]] = initial_journey_log if initial_journey_log is not None else []
+        self.auto_execute_enabled: bool = initial_auto_execute_enabled # Use the passed parameter
 
+        self.pending_code_to_execute: Optional[Dict[str, Any]] = initial_pending_code
+        self.pending_whatif_code_to_execute: Optional[Dict[str, Any]] = initial_pending_whatif
+        self.pending_focus_proposal: Optional[Dict[str, Any]] = initial_pending_focus_proposal
+        self.last_executed_plot_path: Optional[str] = initial_last_plot_path
+        
+    def _serialize_part(self, part: Part) -> Dict[str, Any]:
+        part_dict = {}
+        if hasattr(part, 'text') and part.text: # Check if text attribute exists and is not None/empty
+            part_dict["text"] = part.text
+        
+        # Optional: Handle other part types like inline_data, function_call, function_response
+        # if hasattr(part, 'inline_data') and part.inline_data:
+        #     part_dict["inline_data"] = {
+        #         "mime_type": part.inline_data.mime_type,
+        #         "data_placeholder": f"<Inline data: {part.inline_data.mime_type}>"
+        #     }
+        # ... etc. for function_call, function_response
+        
+        if not part_dict and hasattr(part, 'text'): # If no other content but text was None/empty, still provide text key
+             part_dict["text"] = "" # Ensure 'text' key exists even if empty, as API might expect it for text parts
+
+        return part_dict if part_dict else {"text": ""} # Ensure a valid part dict is returned
+    
+    def _serialize_chat_history_turn(self, turn: Content) -> Dict[str, Any]:
+        """Converts a single genai.types.Content object (a turn in history) to a JSON-serializable dict."""
+        if not isinstance(turn, Content):
+            logging.error(f"SERIALIZATION ERROR: Expected genai.types.Content, got {type(turn)}. Data: {str(turn)[:200]}")
+            return {"role": "error_internal", "parts": [{"text": "Serialization error: Invalid turn type."}]}
+
+        # Ensure role is valid, otherwise default or log warning
+        valid_roles = ("user", "model", "function") # function role is for function calling
+        role = turn.role
+        if role not in valid_roles:
+            logging.warning(f"Serializing turn with an API-unknown role: '{role}'. Using 'user' as fallback for structure.")
+            # This is a choice: either raise error, or try to make it structurally valid.
+            # The API only accepts 'user' and 'model' for standard chat history passed to start_chat,
+            # unless function calling is involved where 'function' role is also used for responses.
+            # For simple history, it must be user/model.
+            if role != "tool": # "tool" role is for function responses (formerly "function")
+                 role = "user" # A somewhat arbitrary fallback to maintain structure for non-function turns
+
+        serialized_parts = []
+        if turn.parts: # Ensure parts list exists
+            for p in turn.parts:
+                if p: # Ensure part itself is not None
+                    serialized_parts.append(self._serialize_part(p))
+        
+        return {
+            "role": role,
+            "parts": serialized_parts
+        }
+        
+
+    def get_persistable_ai_history(self) -> List[Dict[str, Any]]:
+        """
+        Serializes the current AI chat session history into a list of dictionaries
+        suitable for JSON storage and for re-initializing a chat session.
+        """
+        if self.chat_session and hasattr(self.chat_session, 'history') and self.chat_session.history:
+            # self.chat_session.history is List[genai.types.Content]
+            return [self._serialize_chat_history_turn(turn) for turn in self.chat_session.history]
+        return [] # Return empty list if no history
+
+    def get_current_state_for_persistence(self) -> Dict[str, Any]:
+        """Extracts all persistable state from the service instance."""
+        return {
+            "chat_history": self.get_persistable_ai_history(), # Use the dedicated method
+            "analysis_journey_log": self.analysis_journey_log,
+            "current_focus_filter": self.current_focus_filter,
+            "pending_code_to_execute": self.pending_code_to_execute,
+            "pending_whatif_code_to_execute": self.pending_whatif_code_to_execute, # if you have it
+            "pending_focus_proposal": self.pending_focus_proposal, # if you have it
+            "last_executed_plot_path": self.last_executed_plot_path, # This is the URL
+            "auto_execute_enabled": self.auto_execute_enabled
+        }
+    
     def _setup_logging(self, log_level_str: str):
         log_level_num = getattr(logging, log_level_str.upper(), logging.WARNING)
         # Configure root logger. If this service is part of a larger app,
