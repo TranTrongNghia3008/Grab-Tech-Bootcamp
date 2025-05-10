@@ -60,17 +60,22 @@ class NewSessionResponse(BaseModel):
 class JourneyLogEntryResponse(BaseModel):
     timestamp: datetime
     event_type: str
-    payload: Optional[Dict[str, Any]]
+    payload_json: Optional[Dict[str, Any]] = None
 
     class Config:
         from_attributes = True
+        
+class FrontendJourneyLogItem(BaseModel): # A new schema for the API output
+    timestamp: datetime
+    event_type: str
+    payload: Optional[Dict[str, Any]] # This is what the FE will see
         
 class LoadedSessionResponse(BaseModel): # Schema for full session state reload
     dataset_id: int
     session_id: str
     chat_history_json: List[Dict[str, Any]] # The AI-compatible history
     analysis_journey_log_json: List[Dict[str, Any]]
-    journey_log: List[JourneyLogEntryResponse] # The rich journey log for UI reconstruction
+    journey_log: List[FrontendJourneyLogItem] # The rich journey log for UI reconstruction
     current_focus_filter: Optional[str]
     pending_code_to_execute_json: Optional[Dict[str, Any]]
     pending_whatif_code_to_execute_json: Optional[Dict[str, Any]] # Add if you have this state

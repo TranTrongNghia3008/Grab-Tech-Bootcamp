@@ -294,15 +294,22 @@ async def get_db_session_state_endpoint( # Renamed function
     if not db_session_orm:
         raise HTTPException(status_code=404, detail="Session not found.")
 
-    journey_log_for_fe = [
-        chatbot_schemas.JourneyLogEntryResponse.from_orm(entry) for entry in db_session_orm.journey_log_entries
-    ]
+    journey_log_for_fe = []
+    for entry in db_session_orm.journey_log_entries:
+        journey_log_for_fe.append(
+            chatbot_schemas.FrontendJourneyLogItem( # Map manually
+                timestamp=entry.timestamp,
+                event_type=entry.event_type,
+                payload=entry.payload_json # Map from payload_json to payload
+            )
+        )
 
     return chatbot_schemas.LoadedSessionResponse(
         dataset_id=db_session_orm.dataset_id,
         session_id=db_session_orm.session_uuid,
         chat_history_json=db_session_orm.chat_history_json or [], # Send the AI history
         journey_log=journey_log_for_fe, # Send the formatted journey log
+        analysis_journey_log_json=db_session_orm.analysis_journey_log_json or [],
         current_focus_filter=db_session_orm.current_focus_filter,
         pending_code_to_execute_json=db_session_orm.pending_code_to_execute_json,
         pending_whatif_code_to_execute_json=db_session_orm.pending_whatif_code_to_execute_json, # Add if present
