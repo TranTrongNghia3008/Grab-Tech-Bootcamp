@@ -149,6 +149,7 @@ class DBSessionManager:
 )
 async def start_new_db_chatbot_session(
     dataset_id: int, # Path parameter
+    chat_name: Optional[str],
     db: Session = Depends(get_db)
 ):
     """
@@ -187,6 +188,8 @@ async def start_new_db_chatbot_session(
                 )
             except Exception as e:
                 logger.warning(f"Could not log AI initial ack: {e}")
+        
+        crud_chatbot_session.update_chat_name_by_ids(db, dataset_id, new_session_uuid, chat_name)
 
         
     except HTTPException as e: # Catch specific errors from _get_or_create_db_session
@@ -346,10 +349,15 @@ async def get_db_session_k_state_endpoint(
         latest_k_journey_entries_orm.reverse()
 
 
-    journey_log_for_fe = [
-        chatbot_schemas.JourneyLogEntryResponse.from_orm(entry) 
-        for entry in latest_k_journey_entries_orm
-    ]
+    journey_log_for_fe = []
+    for entry in latest_k_journey_entries_orm:
+        journey_log_for_fe.append(
+            chatbot_schemas.FrontendJourneyLogItem( # Map manually
+                timestamp=entry.timestamp,
+                event_type=entry.event_type,
+                payload=entry.payload_json # Map from payload_json to payload
+            )
+        )
 
     return chatbot_schemas.LoadedSessionResponse(
         dataset_id=db_session_orm.dataset_id,
