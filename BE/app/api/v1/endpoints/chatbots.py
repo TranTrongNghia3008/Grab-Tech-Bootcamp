@@ -346,10 +346,15 @@ async def get_db_session_k_state_endpoint(
         latest_k_journey_entries_orm.reverse()
 
 
-    journey_log_for_fe = [
-        chatbot_schemas.JourneyLogEntryResponse.from_orm(entry) 
-        for entry in latest_k_journey_entries_orm
-    ]
+    journey_log_for_fe = []
+    for entry in latest_k_journey_entries_orm:
+        journey_log_for_fe.append(
+            chatbot_schemas.FrontendJourneyLogItem( # Map manually
+                timestamp=entry.timestamp,
+                event_type=entry.event_type,
+                payload=entry.payload_json # Map from payload_json to payload
+            )
+        )
 
     return chatbot_schemas.LoadedSessionResponse(
         dataset_id=db_session_orm.dataset_id,
