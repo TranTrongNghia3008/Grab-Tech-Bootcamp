@@ -361,6 +361,8 @@ Your Tasks:
 10. Analyze Plot Images.
 11. Suggest Next Steps (based on journey).
 12. (Initial Task - Not for user queries) Generate Starter Questions: When first initialized with the data context, you will be asked to provide a few sample questions a non-technical user might ask about the dataset.
+
+IMPORTANT: Ensure the entire output is a single HTML block.
 """
         chat = self.model.start_chat(history=[
             {"role": "user", "parts": [system_prompt]},
@@ -476,6 +478,8 @@ The result/insight obtained was:
 Please provide a very concise one-sentence summary of this key finding. This summary will be used to track the analysis journey.
 For example, if the insight was 'The plot shows a positive correlation between X and Y', a good summary would be 'Positive correlation found between X and Y.'
 If it was a calculation output like 'Average sales: $150.30', the summary could be 'Calculated average sales as $150.30.'
+
+IMPORTANT: Ensure the entire output is a single HTML block.
 """
         try:
             # This uses the main chat session. For a purely utility function, one might use model.generate_content
@@ -526,6 +530,8 @@ Frame them as if the user is asking me (the chatbot). For example:
 - "Which [categorical item] has the highest total [numerical value]?"
 
 Provide only the list of questions, each on a new line. Do not number them or add any other text.
+
+IMPORTANT: Ensure the entire output is a single HTML block.
 """
         try:
             # Use generate_content for one-off non-chat generation
@@ -639,6 +645,8 @@ Error Message:
 Please analyze the error and the code, then provide a corrected version of the Python code.
 Provide only the corrected Python code block. Do not include any explanations before or after the code block.
 If you believe the error is fundamental and cannot be fixed easily (e.g., requesting an impossible operation on the data), you can respond with just the text "CANNOT_FIX".
+
+IMPORTANT: Ensure the entire output is a single HTML block.
 """
             ai_fix_response_text = self._send_to_ai(fix_prompt, original_query + " (fixing code)")
 
@@ -776,6 +784,8 @@ The code should print():
     c. Optional but preferred: If a prominent numerical column (e.g., 'Total', 'Sales', 'Gross income', based on the Data Context Summary) exists, also print() the sum/mean of this column for the original df and for the filtered df. Choose ONE such column. Clearly label these print outputs.
 
 Provide ONLY the Python code block. No explanations before or after the code block.
+
+IMPORTANT: Ensure the entire output is a single HTML block.
 """
                     ai_response_impact_code = self._send_to_ai(impact_code_prompt, f"/focus impact code gen for {user_filter_condition}")
                     impact_code = self._extract_python_code(ai_response_impact_code or "")
@@ -813,6 +823,8 @@ Based on the impact and data context, are there any obvious issues or more insig
 Keep suggestions concise and directly actionable.
 
 Provide ONLY your textual review and suggestions. Do NOT generate any Python code in this response.
+
+IMPORTANT: Ensure the entire output is a single HTML block.
 """
                     ai_filter_review_text = self._send_to_ai(review_prompt, f"/focus AI review for {user_filter_condition}") or "AI review not available."
 
@@ -910,6 +922,8 @@ Calculates and print()s the specific impact or result the user is asking about (
 Ensure the print output is clear and directly answers the user's implied question about the impact.
 
 Provide ONLY the Python code block. No explanations before or after.
+
+IMPORTANT: Ensure the entire output is a single HTML block.
 """
                     ai_response_whatif_code = self._send_to_ai(what_if_code_gen_prompt, f"/whatif code gen for {what_if_user_query}")
                     what_if_code = self._extract_python_code(ai_response_whatif_code or "")
@@ -954,6 +968,8 @@ The Python code generated and executed for this scenario produced the following 
 
 Please explain this result to the user in a clear and concise way, relating it back to their original "what if" question.
 Do not generate any Python code in this response. Focus only on the textual explanation.
+
+IMPORTANT: Ensure the entire output is a single HTML block.
 """
                         ai_explanation = self._send_to_ai(explanation_prompt, f"/whatif explanation for {original_query}") or "AI explanation not available."
                         responses.append({"type": "whatif_ai_explanation", "explanation": ai_explanation, "original_query": original_query})
@@ -1021,6 +1037,8 @@ Provide detailed insights based only on what you can see in the image:
 
     What conclusions or further questions might arise from this visualization?
     Keep your analysis concise and focused on the visual information.
+    
+IMPORTANT: Ensure the entire output is a single HTML block.
 """,
                             img
                         ]
@@ -1051,6 +1069,8 @@ And considering the latest finding/action was related to: "{latest_finding_or_ac
 Suggest 2-3 logical next analytical questions or explorations that can be performed on the current DataFrame df.
 Frame these as questions the user might ask, or direct suggestions for what to investigate next.
 Be specific and actionable.
+
+IMPORTANT: Ensure the entire output is a single HTML block.
 """
                     suggestions = self._send_to_ai(next_step_prompt, "Next step suggestions")
                     if suggestions:

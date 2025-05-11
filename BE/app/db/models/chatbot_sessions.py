@@ -9,7 +9,7 @@ class ChatSessionState(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     dataset_id = Column(Integer, ForeignKey("datasets.id"), nullable=False, index=True)
     session_uuid = Column(String, unique=True, index=True, nullable=False) # The client-facing session ID
-    chat_name = Column(String, unique=True, nullable=True)
+    chat_name = Column(String, nullable=True)
     
     # Store complex Python objects as JSON strings or use database-native JSON types
     chat_history_json = Column(JSON, nullable=True) # Stores the list of history dicts
