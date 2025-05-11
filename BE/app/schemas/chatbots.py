@@ -87,6 +87,7 @@ class SessionInfo(BaseModel):
     session_uuid: str
     created_at: datetime
     last_accessed_at: datetime
+    chat_name: Optional[str]
 
     class Config:
         from_attributes = True

@@ -143,3 +143,23 @@ def get_latest_k_journey_log_entries(
         .order_by(JourneyLogEntry.timestamp.desc())\
         .limit(k)\
         .all()
+        
+def update_chat_name_by_ids(
+    db: Session,
+    dataset_id: int,
+    session_uuid: str,
+    new_chat_name: str
+) -> Optional[ChatSessionState]:
+    """
+    Fetches a ChatSessionState by dataset_id and session_uuid, updates its chat_name, and returns it.
+    """
+    session = db.query(ChatSessionState)\
+        .filter(ChatSessionState.dataset_id == dataset_id, ChatSessionState.session_uuid == session_uuid)\
+        .first()
+    if not session:
+        return None
+    session.chat_name = new_chat_name
+    db.commit()
+    db.refresh(session)
+    logger.info(f"Updated chat_name for session {session_uuid} to '{new_chat_name}'")
+    return session

@@ -149,6 +149,7 @@ class DBSessionManager:
 )
 async def start_new_db_chatbot_session(
     dataset_id: int, # Path parameter
+    chat_name: Optional[str],
     db: Session = Depends(get_db)
 ):
     """
@@ -187,6 +188,8 @@ async def start_new_db_chatbot_session(
                 )
             except Exception as e:
                 logger.warning(f"Could not log AI initial ack: {e}")
+        
+        crud_chatbot_session.update_chat_name_by_ids(db, dataset_id, new_session_uuid, chat_name)
 
         
     except HTTPException as e: # Catch specific errors from _get_or_create_db_session
