@@ -27,3 +27,15 @@ export function getAllSessions(datasetId) {
         method: "GET",
     });
 }
+
+export function getKStateLatest(datasetId, k, sessionId) {
+    return apiClient(`/sessions/${datasetId}/state/latest?k=${k}&session_id=${sessionId}`, {
+        method: "GET"
+    })
+}
+
+export function clearHistory(datasetId, sessionId) {
+    return apiClient(`/sessions/${datasetId}/clear-history?session_id=${sessionId}`, {
+        method: "POST"
+    })
+}

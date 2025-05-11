@@ -9,6 +9,10 @@ export default function DatasetsPage() {
   const [projects, setProjects] = useState([]);
 
   useEffect(() => {
+      document.title = "DataMate - Dataset";
+    }, []);
+
+  useEffect(() => {
     const fetchProjects = async () => {
       try {
         const data = await getAllByCreation();

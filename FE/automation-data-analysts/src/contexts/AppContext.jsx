@@ -11,6 +11,10 @@ export function AppProvider({ children }) {
     datasetId: null,
     sessionId: null,
     projectName: null,
+    isClean: false,
+    isModel: false,
+    selectedTarget: null,
+    selectedFeatures: [],
     comparisonResults: {},
     tuningResults: null,
     predictedResults: null

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { FaBullseye, FaWrench } from "react-icons/fa";
 import { Tooltip } from 'react-tooltip';
 import { Card } from "../../components/ui";
@@ -11,10 +11,8 @@ import { parseAISummary } from "../../utils/parseHtml";
 
 export default function ModelingPanel() {
   const { state } = useAppContext();
-  const { datasetId, sessionId, comparisonResults } = state;
+  const { datasetId, sessionId, comparisonResults, selectedTarget, selectedFeatures } = state;
   // const datasetId = 4; 
-  const [selectedTarget, setSelectedTarget] = useState("");
-  const [selectedFeatures, setSelectedFeatures] = useState([]);
   const [activeTab, setActiveTab] = useState("Baseline");
   const [isFinalized, setIsFinalized] = useState(false);
   const [finalizedModelId, setFinalizedModelId] = useState(null);
@@ -32,13 +30,6 @@ export default function ModelingPanel() {
     });
     return obj;
   });
-
-  useEffect(() => {
-    const target = localStorage.getItem("selectedTarget");
-    const features = JSON.parse(localStorage.getItem("selectedFeatures") || "[]");
-    if (target) setSelectedTarget(target);
-    if (features.length > 0) setSelectedFeatures(features);
-  }, []);
 
   const bestModel = formattedComparisonResults.reduce((best, current) => {
     const score = current["RMSE"] - current["R2"]; // Giảm RMSE, tăng R2

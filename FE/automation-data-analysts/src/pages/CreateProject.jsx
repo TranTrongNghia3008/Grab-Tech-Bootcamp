@@ -56,7 +56,7 @@ export default function CreateProject() {
     try {
       const result = await upLoadDataset(projectName, file); // Gọi API tải lên dataset
       console.log("Dataset ID:", result.id); // Log kết quả tải lên cho việc gỡ lỗi
-      updateState({ datasetId: result.id, projectName: projectName }); // Cập nhật datasetId vào context nếu cần
+      updateState({ datasetId: result.id, projectName: projectName, isClean: false, isModel: false }); // Cập nhật datasetId vào context nếu cần
       const newProject = {
         id: result.projectId || Date.now(),
         name: projectName.trim(),

@@ -21,6 +21,10 @@ export default function Projects() {
   const [newName, setNewName] = useState("");
 
   useEffect(() => {
+    document.title = "DataMate - Projects";
+  }, []);
+
+  useEffect(() => {
     const fetchProjects = async () => {
       try {
         const data = await getAllByCreation();
@@ -156,7 +160,9 @@ export default function Projects() {
               onClick={() => {
                 updateState({
                   datasetId: project.id,
-                  projectName: project.project_name || "Untitled Project"
+                  projectName: project.project_name || "Untitled Project",
+                  isClean: project.is_clean,
+                  isModel: project.is_model
                 });
                 localStorage.setItem("currentProject", JSON.stringify(project));
                 navigate("/project/" + project.id);

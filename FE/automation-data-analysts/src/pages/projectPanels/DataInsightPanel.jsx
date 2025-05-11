@@ -20,9 +20,6 @@ export default function DataInsightPanel() {
   const [stats, setStats] = useState(null);
   const [corr, setCorr] = useState(null);
   const [corrForSummary, setCorrForSummary] = useState(null)
-  const [reports, setReports] = useState([]);
-  const [loadingReports, setLoadingReports] = useState(false);
-  const [fetched, setFetched] = useState(false); 
   const [aiSummaryStatsRes, setAISummaryStatsRes] = useState(null);
   const [loadingAISummaryStats, setLoadingAISummaryStats] = useState(false);
   const [aiCorrelationMatrix, setAICorrelationMatrix] = useState(null);
@@ -136,32 +133,6 @@ export default function DataInsightPanel() {
     } finally {
       setLoadingCorrelationMatrix(false);
     }
-  };
-
-  const handleGetReport = () => {
-    setLoadingReports(true);
-
-    setTimeout(() => {
-      const mockReports = [
-        { name: 'EDA_Report_Q1.pdf', url: '/mock-reports/EDA_Report_Q1.pdf' },
-        { name: 'EDA_Report_Q2.pdf', url: '/mock-reports/EDA_Report_Q2.pdf' },
-        { name: 'EDA_Report_Summary.pdf', url: '/mock-reports/EDA_Report_Summary.pdf' }
-      ];
-      setReports(mockReports);
-      setLoadingReports(false);
-      setFetched(true);
-    }, 1000);
-  };
-
-  const handleDownloadAll = () => {
-    reports.forEach((report, idx) => {
-      setTimeout(() => {
-        const link = document.createElement('a');
-        link.href = report.url;
-        link.download = report.name;
-        link.click();
-      }, idx * 300);
-    });
   };
 
   // Hàm tính toán giá trị tương quan cao nhất
@@ -389,51 +360,6 @@ export default function DataInsightPanel() {
       
       {/* Chart Generation */}
       <ChartGeneration/>
-
-      {/* EDA Reports Section */}
-      <Card>
-        <h3 className="text-gray-800 text-xl mb-4 flex items-center gap-2">
-          <FiFileText /> EDA Reports
-        </h3>
-
-        {/* Nút Get Reports */}
-        {!fetched && (
-          <Button
-            onClick={handleGetReport}
-            disabled={loadingReports}
-          >
-            {loadingReports ? 'Loading...' : 'Get Reports'}
-          </Button>
-        )}
-
-        {/* Hiển thị khi đã fetch */}
-        {fetched && (
-          <>
-            <Button
-              onClick={handleDownloadAll}           
-            >
-              Download All
-            </Button>
-
-            <ul className="divide-y divide-gray-200 border rounded-md mt-2">
-              {reports.map((r, idx) => (
-                <li key={idx} className="flex items-center justify-between p-3 hover:bg-gray-50">
-                  <span className="text-green-600 font-medium">{r.name}</span>
-                  <Button
-                    href={r.url}
-                    download
-                    target="_blank"
-                    rel="noopener noreferrer"                  >
-                    Download
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-      </Card>
-
-      
     </div>
   );
 }
