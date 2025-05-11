@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form, Query
 import io
+from typing import List, Optional, Any
+from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import create_engine
 import pandas as pd
 from app.crud.datasets import DatasetCreateSchema, DatasetUpdateSchema
-from app.schemas.dataset import DatasetFromConnection, DatasetId, DatasetPreview, DatasetFlatListResponse, DatasetAnalysisReport
+from app.schemas.dataset import DatasetFromConnection, DatasetId, DatasetPreview, DatasetFlatListResponse, DatasetAnalysisReport, DatasetFlatInfo, DataPreviewSchema
 
 # Import CRUD functions for datasets and connections
 from app.crud.datasets import crud_dataset
@@ -283,12 +285,14 @@ def get_dataset_preview(dataset_id: int, db: Session = Depends(get_db)):
     return response_data
 
 @router.get(
-    "/datasets/all-by-creation/", # New, more descriptive path
+    "/datasets/all-by-creation/",
     response_model=DatasetFlatListResponse,
     summary="List ALL Datasets Ordered by Creation Date (Newest First)"
 )
 async def list_all_datasets_ordered_by_creation_date(
     db: Session = Depends(get_db)
+    # Performance note: For endpoints listing ALL items, especially with I/O per item,
+    # consider pagination (e.g., adding skip: int = 0, limit: int = 100 parameters).
 ):
     """
     **Retrieve a flat list of ALL datasets, ordered by their creation date (newest first).**
@@ -297,15 +301,96 @@ async def list_all_datasets_ordered_by_creation_date(
     - `id`: The dataset's unique identifier.
     - `project_name`: The name of the project the dataset belongs to (if any).
     - `created_at`: The timestamp when the dataset record was created.
-    - `is_model`: Check if the dataset was trained or not
-    - `is_clean`: Check if the dataset was cleaned or not
+    - `is_model`: Check if the dataset was trained or not.
+    - `is_clean`: Check if the dataset was cleaned or not.
+    - `data_preview`: A preview of the dataset (first 4 rows and 4 columns).
+                      Format: {"columns": ["col1", ...], "data": [[val1, ...], ...]}.
+                      Preview is from the cleaned version of the dataset if available, otherwise original.
+                      Will be null if data cannot be loaded, is empty, or file path is missing.
     """
-    # Fetch all datasets, ordered by created_at descending (newest first)
-    db_datasets = crud_dataset.get_all_datasets_ordered_by_creation(db=db, descending=True)
+    db_dataset_models = crud_dataset.get_all_datasets_ordered_by_creation(db=db, descending=True)
 
-    # Pydantic will convert each DatasetModel instance in db_datasets
-    # into a DatasetFlatInfo instance due to orm_mode=True.
-    return DatasetFlatListResponse(datasets=db_datasets)
+    response_datasets: List[DatasetFlatInfo] = []
+    for dataset_model in db_dataset_models:
+        data_preview_payload: Optional[DataPreviewSchema] = None
+        df: Optional[pd.DataFrame] = None
+
+        # --- Data Loading for Preview ---
+        # This logic attempts to mirror crud_dataset.get_dataset_analysis:
+        # 1. Try to load cleaned data (convention: dataset_{id}_cleaned.csv).
+        # 2. If not found, fall back to the original dataset file_path.
+        # Assumes dataset_model has 'id' and 'file_path' attributes.
+
+        model_id = getattr(dataset_model, 'id', None)
+        original_file_path = getattr(dataset_model, 'file_path', None)
+
+        if model_id is not None and original_file_path and isinstance(original_file_path, str):
+            try:
+                cleaned_filename_candidate = f"dataset_{model_id}_cleaned.csv"
+                # get_file_path needs to be robust and find files based on your storage setup.
+                potential_cleaned_path = get_file_path(cleaned_filename_candidate)
+                df = load_csv_as_dataframe(potential_cleaned_path)
+            except FileNotFoundError:
+                try:
+                    df = load_csv_as_dataframe(original_file_path)
+                except FileNotFoundError:
+                    df = None # File not found, df remains None
+                except Exception as e_orig: # Other errors loading original file
+                    df = None
+            except Exception as e_cleaned: # Other errors loading cleaned file (permissions, corrupt, etc.)
+                try:
+                    df = load_csv_as_dataframe(original_file_path)
+                except Exception as e_orig_fallback:
+                    df = None
+        elif original_file_path and isinstance(original_file_path, str): # Fallback if no ID, but path exists
+             try:
+                df = load_csv_as_dataframe(original_file_path)
+             except Exception as e_load_basic:
+                df = None
+        # If df is still None, it means no file could be loaded or paths were invalid.
+
+        # --- Preview Generation ---
+        if df is not None and not df.empty:
+            try:
+                num_rows_to_take = min(4, df.shape[0])
+                num_cols_to_take = min(4, df.shape[1])
+                
+                preview_df_slice = df.iloc[:num_rows_to_take, :num_cols_to_take]
+                
+                # Ensure column names are strings
+                column_names = [str(col) for col in preview_df_slice.columns.tolist()]
+
+                serializable_data_rows: List[List[Any]] = []
+                # iterrows is not the most performant for large DFs, but fine for a small 4x4 slice.
+                for _, row_series in preview_df_slice.iterrows():
+                    processed_row: List[Any] = []
+                    for item in row_series:
+                        if pd.isna(item): # Handle NaN/NaT
+                            processed_row.append(None)
+                        elif isinstance(item, (datetime, pd.Timestamp)): # Convert datetime objects to ISO strings
+                            processed_row.append(item.isoformat())
+                        else:
+                            processed_row.append(item) # Pass through other types
+                    serializable_data_rows.append(processed_row)
+
+                data_preview_payload = DataPreviewSchema(
+                    columns=column_names,
+                    data=serializable_data_rows
+                )
+            except Exception as e_preview_gen:
+                data_preview_payload = None 
+
+        dataset_flat_info = DatasetFlatInfo(
+            id=dataset_model.id,
+            project_name=getattr(dataset_model, 'project_name', None),
+            created_at=dataset_model.created_at,
+            is_model=getattr(dataset_model, 'is_model', False),
+            is_clean=getattr(dataset_model, 'is_clean', False),
+            data_preview=data_preview_payload
+        )
+        response_datasets.append(dataset_flat_info)
+    
+    return DatasetFlatListResponse(datasets=response_datasets)
 
 @router.get(
     "/datasets/{dataset_id}/analysis-report/",
