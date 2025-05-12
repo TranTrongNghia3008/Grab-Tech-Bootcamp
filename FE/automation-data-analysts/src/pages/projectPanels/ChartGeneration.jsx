@@ -1,18 +1,16 @@
 import { useState, useEffect, useRef } from "react";
-import axios from "axios";
 import { FiBarChart2 } from "react-icons/fi";
 import { Loader2 } from "lucide-react";
 import { Line, Bar, Scatter } from "react-chartjs-2";
 import { Chart, registerables } from "chart.js";
 import zoomPlugin from "chartjs-plugin-zoom";
 import { Button, Card } from "../../components/ui";
+import { getChartColumns, getChartSummary } from "../../components/services/chartServices";
 
 Chart.register(...registerables, zoomPlugin);
 
-const ChartGeneration = () => {
+const ChartGeneration = ({ datasetId, columns }) => {
   const chartRef = useRef(null);
-  const tableName = "retail+sales+data";
-
   const [chartForm, setChartForm] = useState({
     type: "bar",
     x: "",
@@ -31,33 +29,28 @@ const ChartGeneration = () => {
   const [yOptions, setYOptions] = useState([]);
   const [chartData, setChartData] = useState(null);
   const [loading, setLoading] = useState("");
-  const [csvLoaded, setCsvLoaded] = useState(false);
+  const [hasChanged, setHasChanged] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
-    const loadCsv = async () => {
-      setLoading("Loading CSV...");
-      try {
-        await axios.get("http://localhost:5000/load_csv/", { params: { table: tableName } });
-        setCsvLoaded(true);
-      } catch (err) {
-        console.error("Error loading CSV:", err);
-      } finally {
-        setLoading("");
-      }
-    };
-    loadCsv();
-  }, []);
-
-  useEffect(() => {
-    if (!csvLoaded) return;
     const fetchColumns = async () => {
       setLoading("Loading available columns...");
       try {
-        const res = await axios.get("http://localhost:5000/get_chart_columns/", {
-          params: { table: tableName, chart_type: chartForm.type }
-        });
-        setXOptions(res.data.x_columns || []);
-        setYOptions(res.data.y_columns || []);
+        const res = await getChartColumns({ datasetId, chartType: chartForm.type });
+
+        // Đồng bộ tên cột từ res với cột thật (columns gốc)
+        const normalize = (str) => str.replace(/[_\s]/g, "").toLowerCase();
+        const mapToOriginal = (colList) =>
+          colList.map((col) => {
+            const matched = columns.find((orig) => normalize(orig) === normalize(col));
+            return matched || col;
+          });
+
+        const xMapped = mapToOriginal(res.x_columns || []);
+        const yMapped = mapToOriginal(res.y_columns || []);
+
+        setXOptions(xMapped);
+        setYOptions(yMapped);
         setChartForm((prev) => ({ ...prev, x: "", y: "" }));
       } catch (err) {
         console.error("Error fetching columns:", err);
@@ -66,26 +59,29 @@ const ChartGeneration = () => {
       }
     };
     fetchColumns();
-  }, [chartForm.type, csvLoaded]);
+  }, [chartForm.type, columns]);
+
 
   const handleGenerateChart = async () => {
     if (!chartForm.x || (chartForm.type !== "histogram" && !chartForm.y)) {
-      alert("Please select valid columns.");
+      setErrorMsg("Please select valid X and Y columns before generating the chart.");
       return;
     }
 
     setLoading("Generating chart...");
+    setErrorMsg(""); // clear previous error
+
     try {
       const params = {
-        table: tableName,
-        x: chartForm.x,
+        datasetId,
+        xColumn: chartForm.x,
       };
       if (chartForm.type === "histogram") params.bins = chartForm.bins;
-      else params.y = chartForm.y;
+      else params.yColumn = chartForm.y;
 
-      const res = await axios.get("http://localhost:5000/get_summary/", { params });
-      const labels = res.data.x;
-      const data = res.data.y;
+      const res = await getChartSummary(params);
+      const labels = res.x;
+      const data = res.y;
 
       const dataset = {
         label:
@@ -107,8 +103,10 @@ const ChartGeneration = () => {
         labels: chartForm.type === "scatter" ? undefined : labels,
         datasets: [dataset],
       });
+      setHasChanged(false); // mark chart as synced
     } catch (err) {
       console.error("Error generating chart:", err);
+      setErrorMsg("Something went wrong while generating the chart.");
     } finally {
       setLoading("");
     }
@@ -144,9 +142,11 @@ const ChartGeneration = () => {
           <label className="text-gray-600 font-medium mb-1">Chart Type</label>
           <select
             value={chartForm.type}
-            onChange={(e) =>
-              setChartForm({ type: e.target.value, x: "", y: "", bins: 10 })
-            }
+            onChange={(e) => {
+              setChartForm({ type: e.target.value, x: "", y: "", bins: 10 });
+              setChartData(null);
+              setHasChanged(true);
+            }}
             className="border border-green-600 rounded-md px-3 py-2 focus:ring-2 focus:ring-green-600"
           >
             <option value="bar">Bar</option>
@@ -161,15 +161,21 @@ const ChartGeneration = () => {
           <label className="text-gray-600 font-medium mb-1">X Axis</label>
           <select
             value={chartForm.x}
-            onChange={(e) => setChartForm({ ...chartForm, x: e.target.value })}
+            onChange={(e) => {
+              setChartForm({ ...chartForm, x: e.target.value });
+              setChartData(null);
+              setHasChanged(true);
+            }}
             className="border border-green-600 rounded-md px-3 py-2"
           >
             <option value="">Select X</option>
-            {xOptions.map((col) => (
-              <option key={col} value={col}>
-                {col}
-              </option>
-            ))}
+            {xOptions
+              .filter((col) => col !== chartForm.y)
+              .map((col) => (
+                <option key={col} value={col}>
+                  {col}
+                </option>
+              ))}
           </select>
         </div>
 
@@ -179,15 +185,21 @@ const ChartGeneration = () => {
             <label className="text-gray-600 font-medium mb-1">Y Axis</label>
             <select
               value={chartForm.y}
-              onChange={(e) => setChartForm({ ...chartForm, y: e.target.value })}
+              onChange={(e) => {
+                setChartForm({ ...chartForm, y: e.target.value });
+                setChartData(null);
+                setHasChanged(true);
+              }}
               className="border border-green-600 rounded-md px-3 py-2"
             >
               <option value="">Select Y</option>
-              {yOptions.map((col) => (
-                <option key={col} value={col}>
-                  {col}
-                </option>
-              ))}
+              {yOptions
+                .filter((col) => col !== chartForm.x)
+                .map((col) => (
+                  <option key={col} value={col}>
+                    {col}
+                  </option>
+                ))}
             </select>
           </div>
         )}
@@ -201,9 +213,11 @@ const ChartGeneration = () => {
               min={2}
               max={50}
               value={chartForm.bins}
-              onChange={(e) =>
-                setChartForm({ ...chartForm, bins: Number(e.target.value) })
-              }
+              onChange={(e) => {
+                setChartForm({ ...chartForm, bins: Number(e.target.value) });
+                setChartData(null);
+                setHasChanged(true);
+              }}
               className="border border-green-600 rounded-md px-3 py-2"
             />
           </div>
@@ -216,13 +230,15 @@ const ChartGeneration = () => {
             <input
               type="color"
               value={chartOptions.borderColor}
-              onChange={(e) =>
+              onChange={(e) => {
                 setChartOptions({
                   ...chartOptions,
                   borderColor: e.target.value,
                   backgroundColor: `${e.target.value}80`,
-                })
-              }
+                });
+                setChartData(null);
+                setHasChanged(true);
+              }}
             />
           </div>
 
@@ -234,9 +250,11 @@ const ChartGeneration = () => {
                 min={1}
                 max={10}
                 value={chartOptions.pointRadius}
-                onChange={(e) =>
-                  setChartOptions({ ...chartOptions, pointRadius: Number(e.target.value) })
-                }
+                onChange={(e) => {
+                  setChartOptions({ ...chartOptions, pointRadius: Number(e.target.value) });
+                  setChartData(null);
+                  setHasChanged(true);
+                }}
                 className="border border-green-600 rounded-md px-3 py-2"
               />
             </div>
@@ -251,9 +269,11 @@ const ChartGeneration = () => {
                 min={0}
                 max={1}
                 value={chartOptions.lineTension}
-                onChange={(e) =>
-                  setChartOptions({ ...chartOptions, lineTension: Number(e.target.value) })
-                }
+                onChange={(e) => {
+                  setChartOptions({ ...chartOptions, lineTension: Number(e.target.value) });
+                  setChartData(null);
+                  setHasChanged(true);
+                }}
                 className="border border-green-600 rounded-md px-3 py-2"
               />
             </div>
@@ -261,7 +281,7 @@ const ChartGeneration = () => {
         </div>
 
         {/* Generate + Download */}
-        <div className="pt-6 ">
+        <div className="pt-6">
           <Button onClick={handleGenerateChart} disabled={!!loading}>
             {loading ? (
               <div className="flex items-center gap-2">
@@ -272,9 +292,8 @@ const ChartGeneration = () => {
             )}
           </Button>
         </div>
-          
 
-        {chartData && (
+        {chartData && !hasChanged && (
           <div className="pt-6">
             <Button variant="outline" onClick={handleDownloadChart}>
               Download Chart
@@ -282,9 +301,9 @@ const ChartGeneration = () => {
           </div>
         )}
       </div>
-
-
-      
+      {errorMsg && (
+        <div className="text-red-600 text-sm mt-2">{errorMsg}</div>
+      )}
 
       {/* Chart Result */}
       <div className="pt-6">
@@ -295,7 +314,13 @@ const ChartGeneration = () => {
           </div>
         )}
 
-        {chartData && !loading && (
+        {hasChanged && !loading && (
+          <p className="text-gray-400 italic ml-6">
+            Click <strong>Generate Chart</strong> to create your chart.
+          </p>
+        )}
+
+        {chartData && !loading && !hasChanged && (
           <div className="bg-gray-50 p-4 border rounded-lg shadow-inner">
             <ChartComponent
               ref={chartRef}

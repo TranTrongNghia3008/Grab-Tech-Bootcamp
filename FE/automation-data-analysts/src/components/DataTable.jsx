@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 export default function DataTable({ data }) {
@@ -69,9 +69,13 @@ export default function DataTable({ data }) {
                   key={col}
                   className="px-4 py-2 whitespace-nowrap w-[200px] min-w-[200px] border-r border-[#CDEBD5] text-[#1B1F1D]"
                 >
-                  {typeof row[col] === "number"
-                    ? row[col].toFixed(3)
-                    : row[col]}
+                  {React.isValidElement(row[col]) ? row[col] : (
+                    typeof row[col] === "number"
+                      ? Number.isInteger(row[col])
+                        ? row[col]
+                        : row[col].toFixed(3)
+                      : row[col]
+                  )}
                 </td>
               ))}
             </tr>

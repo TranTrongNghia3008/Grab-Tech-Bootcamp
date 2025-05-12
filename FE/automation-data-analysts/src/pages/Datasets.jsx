@@ -1,26 +1,49 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import DataTable from "../components/DataTable";
 import MainLayout from "../layout/MainLayout";
 import { FiDatabase } from "react-icons/fi";
-
-
-const dataset = [
-  { id: 1, name: 'Dataset A', createdAt: '2021-10-01', updatedAt: '2023-01-15' },
-  { id: 2, name: 'Dataset B', createdAt: '2022-02-20', updatedAt: '2023-04-10' },
-  { id: 3, name: 'Dataset C', createdAt: '2020-11-05', updatedAt: '2021-12-15' },
-  { id: 4, name: 'Dataset D', createdAt: '2023-03-12', updatedAt: '2023-05-01' },
-];
+import { getAllByCreation } from "../components/services/datasetService";
 
 export default function DatasetsPage() {
   const [search, setSearch] = useState("");
+  const [projects, setProjects] = useState([]);
+
+  useEffect(() => {
+      document.title = "DataMate - Dataset";
+    }, []);
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const data = await getAllByCreation();
+        console.log("Fetched projects:", data);
+        setProjects(data.datasets); 
+      } catch (error) {
+        console.error("Failed to fetch projects:", error);
+      }
+    };
+
+    fetchProjects();
+  }, []);
 
   // Filter datasets based on search
-  const filteredData = dataset.filter((row) =>
-    row.name.toLowerCase().includes(search.toLowerCase()) ||
+  const filteredData = projects.filter((row) =>
+    row.project_name.toLowerCase().includes(search.toLowerCase()) ||
     row.id.toString().includes(search) ||
-    row.createdAt.includes(search) ||
-    row.updatedAt.includes(search)
+    row.createdAt.includes(search)
   );
+
+  const displayData = filteredData.map((item) => ({
+    ID: item.id,
+    Dataset: item.project_name,
+    Created: new Date(item.created_at).toLocaleString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }),
+  }));
 
   return (
     <MainLayout>
@@ -46,7 +69,7 @@ export default function DatasetsPage() {
         </div>
         
         {/* Data Table */}
-        <DataTable data={filteredData} />
+        <DataTable data={displayData} />
 
     </MainLayout>
   );

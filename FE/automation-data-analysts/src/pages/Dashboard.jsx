@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import UploadDropzone from '../components/UploadDropzone';
 import MainLayout from "../layout/MainLayout";
 
 export default function Dashboard() {
+  useEffect(() => {
+    document.title = "DataMate - Dashboard";
+  }, []);
     // const handleUpload = (file) => {
     //     console.log("Đã chọn file:", file);
 

@@ -1,13 +1,17 @@
 import { useState } from "react";
 import { TbAnalyzeFilled } from "react-icons/tb";
 import { Loader2 } from "lucide-react";
-import { Card } from "../../components/ui";
+import { Button, Card } from "../../components/ui";
+import { getBaselineModelEvaluation } from "../../components/services/aisummaryServices";
+import { parseAISummary } from "../../utils/parseHtml";
 
 export default function AnalyzeModel({ availableModels = [], sessionId = 1, imgPath = "" }) {
   console.log("Available models:", availableModels);
   const [selectedModelId, setSelectedModelId] = useState("");
   const [modelDetails, setModelDetails] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [baselineModelEvaluation, setBaselineModelEvaluation] = useState(null);
+  const [loadingBaselineModelEvaluation, setLoadingBaselineModelEvaluation] = useState(false);
 
   const handleSelectModel = async (modelId) => {
     setSelectedModelId(modelId);
@@ -43,6 +47,21 @@ export default function AnalyzeModel({ availableModels = [], sessionId = 1, imgP
     });
 
     setLoading(false);
+  };
+
+  const handleFetchBaselineModelEvaluation = async () => {
+    setLoadingBaselineModelEvaluation(true);
+    try {
+      const res = await getBaselineModelEvaluation(modelDetails);
+
+      console.log("getBaselineModelEvaluation ", res)
+      
+      setBaselineModelEvaluation(parseAISummary(res.summary_html)); 
+    } catch (err) {
+      console.error("Failed to fetch Baseline Model Evaluation:", err);
+    } finally {
+      setLoadingBaselineModelEvaluation(false);
+    }
   };
 
   return (
@@ -108,6 +127,28 @@ export default function AnalyzeModel({ availableModels = [], sessionId = 1, imgP
             </div>
           )}
         </div>
+      )}
+
+      {!imgPath && modelDetails && (
+        <>
+          <div className="flex justify-between bg-green-50 border border-green-200 px-4 py-3 rounded-md text-sm text-green-900 shadow-sm">
+          <p className="me-5 my-auto">
+          <strong>Curious about how your tuned model truly performs - and what’s driving its decisions?</strong> <br/>
+          We've analyzed the model’s consistency, key contributing features, and provided actionable insights to help you confidently move toward deployment or further refinement.          </p>
+          <Button
+            onClick={handleFetchBaselineModelEvaluation}
+            disabled={loadingBaselineModelEvaluation}
+          >
+            {loadingBaselineModelEvaluation ? "Analyzing..." : "Explore"}
+          </Button>
+        </div>
+        {baselineModelEvaluation && (
+          <div
+            className="bg-green-50 border border-green-200 px-4 py-3 rounded-md text-sm text-green-900 shadow-sm"
+            dangerouslySetInnerHTML={{ __html: baselineModelEvaluation }}
+          />
+        )}
+        </>
       )}
     </Card>
   );

@@ -1,31 +1,31 @@
 import { useEffect, useState } from "react";
 import DataTable from "../../components/DataTable";
 import { Button, Card } from "../../components/ui";
-import { FaChartBar, FaProjectDiagram } from "react-icons/fa";
-import { FiBarChart2, FiFileText } from "react-icons/fi";
-import { Loader2 } from "lucide-react";
+import { FaChartBar, FaProjectDiagram, FaListAlt, FaEye } from "react-icons/fa";
+import { FiBarChart2, FiFileText, FiDatabase } from "react-icons/fi";
+import { ImDatabase } from "react-icons/im";
+import { FaChartLine } from "react-icons/fa6";
+import { IoIosWarning } from "react-icons/io";
 import ChartGeneration from "./ChartGeneration";
 import { useAppContext } from "../../contexts/AppContext";
 import { getCorrelation, getSummaryStatistics } from "../../components/services/EDAServices";
 import { getAICorrelationMatrix, getAISummaryStatistics } from "../../components/services/aisummaryServices";
 import { parseAISummary } from "../../utils/parseHtml";
+import { getAnalysisReport } from "../../components/services/datasetService";
 
 export default function DataInsightPanel() {
   const { state } = useAppContext(); 
-  const { datasetId } = state;
-  // const datasetId = 13; // Thay thế bằng datasetId thực tế từ context hoặc props
+  const { datasetId, isClean, columns } = state;
 
   const [stats, setStats] = useState(null);
   const [corr, setCorr] = useState(null);
   const [corrForSummary, setCorrForSummary] = useState(null)
-  const [reports, setReports] = useState([]);
-  const [loadingReports, setLoadingReports] = useState(false);
-  const [fetched, setFetched] = useState(false); 
   const [aiSummaryStatsRes, setAISummaryStatsRes] = useState(null);
   const [loadingAISummaryStats, setLoadingAISummaryStats] = useState(false);
   const [aiCorrelationMatrix, setAICorrelationMatrix] = useState(null);
   const [loadingAICorrelationMatrix, setLoadingCorrelationMatrix] = useState(false);
-
+  const [featureData, setFeatureData] = useState([]);
+  const [overview, setOverview] = useState(null); // cho tổng quan
 
 
   useEffect(() => {
@@ -70,6 +70,44 @@ export default function DataInsightPanel() {
     fetchData();
   }, [datasetId]);
 
+  useEffect(() => {
+    const fetchAnalysis = async () => {
+      try {
+        const res = await getAnalysisReport(datasetId);
+        setOverview({
+          totalRecords: res.total_records,
+          dataQuality: res.data_quality_score,
+          missingPercentage: res.overall_missing_percentage,
+        });
+
+        const features = res.features.map((f) => ({
+          "Feature Name": f.feature_name,
+          "Type": f.dtype.charAt(0).toUpperCase() + f.dtype.slice(1),
+          "Missing Values": `${f.missing_percentage}%`,
+          "Unique Values": `${f.unique_percentage}%`,
+          "Actions": (
+            <FaEye
+              className="text-gray-600 hover:text-green-600 cursor-pointer mx-auto"
+              onClick={() => handleViewFeature(f.feature_name)}
+            />
+          ),
+        }));
+
+        setFeatureData(features);
+      } catch (err) {
+        console.error("Failed to fetch analysis report:", err);
+      }
+    };
+
+    fetchAnalysis();
+  }, [datasetId]);
+
+
+  const handleViewFeature = (featureName) => {
+    console.log("Viewing details for:", featureName);
+    // hoặc mở modal, fetch data,...
+  };
+
   
   const handleFetchAISummaryStatistics = async () => {
     setLoadingAISummaryStats(true);
@@ -95,32 +133,6 @@ export default function DataInsightPanel() {
     } finally {
       setLoadingCorrelationMatrix(false);
     }
-  };
-
-  const handleGetReport = () => {
-    setLoadingReports(true);
-
-    setTimeout(() => {
-      const mockReports = [
-        { name: 'EDA_Report_Q1.pdf', url: '/mock-reports/EDA_Report_Q1.pdf' },
-        { name: 'EDA_Report_Q2.pdf', url: '/mock-reports/EDA_Report_Q2.pdf' },
-        { name: 'EDA_Report_Summary.pdf', url: '/mock-reports/EDA_Report_Summary.pdf' }
-      ];
-      setReports(mockReports);
-      setLoadingReports(false);
-      setFetched(true);
-    }, 1000);
-  };
-
-  const handleDownloadAll = () => {
-    reports.forEach((report, idx) => {
-      setTimeout(() => {
-        const link = document.createElement('a');
-        link.href = report.url;
-        link.download = report.name;
-        link.click();
-      }, idx * 300);
-    });
   };
 
   // Hàm tính toán giá trị tương quan cao nhất
@@ -168,6 +180,62 @@ export default function DataInsightPanel() {
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold">Exploratory Data Analysis</h2>
+
+      {overview && (
+        <Card>
+          <h3 className="text-gray-800 text-xl flex items-center gap-2">
+            <FiDatabase />
+            Dataset Overview
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Total Records */}
+            <Card className="bg-gray-100">
+              <div className="flex justify-between text-gray-500 mb-3">
+                <p className="text-sm font-bold mb-1">Total Records</p>
+                <ImDatabase />
+              </div>
+              <p className="text-2xl font-bold text-gray-800 mb-1">
+                {overview.totalRecords.toLocaleString()}
+              </p>
+              <p className="text-xs text-gray-600 mt-1">Latest updated</p>
+            </Card>
+
+            {/* Data Quality Score */}
+            <Card className="bg-gray-100">
+              <div className="flex justify-between text-gray-500 mb-3">
+                <p className="text-sm font-bold mb-1">Data Quality Score</p>
+                <FaChartLine />
+              </div>
+              <p className="text-2xl font-bold text-gray-800 mb-1">
+                {overview.dataQuality}%
+              </p>
+              <p className="text-xs text-gray-600 mt-1">Overall score</p>
+            </Card>
+
+            {/* Missing Values */}
+            <Card className="bg-gray-100">
+              <div className="flex justify-between text-gray-500 mb-3">
+                <p className="text-sm font-bold mb-1">Missing Values</p>
+                <IoIosWarning />
+              </div>
+              <p className="text-2xl font-bold text-gray-800 mb-1">
+                {overview.missingPercentage}%
+              </p>
+              <p className="text-xs text-gray-600 mt-1">Missing rate</p>
+            </Card>
+          </div>
+        </Card>
+      )}
+
+
+      {featureData && (
+        <Card>
+          <h3 className="text-gray-800 text-xl flex items-center gap-2">
+            <FaListAlt />
+            Feature Analysis</h3>
+          <DataTable data={featureData} />
+        </Card>
+      )}
 
       {/* Summary Stats */}
       {stats && (
@@ -291,51 +359,14 @@ export default function DataInsightPanel() {
 
       
       {/* Chart Generation */}
-      <ChartGeneration/>
-
-      {/* EDA Reports Section */}
-      <Card>
-        <h3 className="text-gray-800 text-xl mb-4 flex items-center gap-2">
-          <FiFileText /> EDA Reports
-        </h3>
-
-        {/* Nút Get Reports */}
-        {!fetched && (
-          <Button
-            onClick={handleGetReport}
-            disabled={loadingReports}
-          >
-            {loadingReports ? 'Loading...' : 'Get Reports'}
-          </Button>
-        )}
-
-        {/* Hiển thị khi đã fetch */}
-        {fetched && (
-          <>
-            <Button
-              onClick={handleDownloadAll}           
-            >
-              Download All
-            </Button>
-
-            <ul className="divide-y divide-gray-200 border rounded-md mt-2">
-              {reports.map((r, idx) => (
-                <li key={idx} className="flex items-center justify-between p-3 hover:bg-gray-50">
-                  <span className="text-green-600 font-medium">{r.name}</span>
-                  <Button
-                    href={r.url}
-                    download
-                    target="_blank"
-                    rel="noopener noreferrer"                  >
-                    Download
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-      </Card>
-
+      {isClean ? (
+        <ChartGeneration datasetId={datasetId} columns={columns}/>
+      ): (
+        <p className="text-gray-400 italic ml-6">
+          Do you want to <strong>Generate Chart</strong>? If so, please clean the dataset. 
+        </p>
+      )
+      }
       
     </div>
   );

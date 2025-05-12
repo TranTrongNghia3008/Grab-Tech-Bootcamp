@@ -84,7 +84,7 @@ async def infer_schema_from_csv(table_name: str):
 
         # Use asyncio.to_thread for the blocking pd.read_csv call
         df_sample = await asyncio.to_thread(pd.read_csv, file_path, nrows=SCHEMA_INFERENCE_ROWS)
-        df_sample.columns = [col.strip().replace(" ", "_") for col in df_sample.columns]
+        df_sample.columns = [col.strip()for col in df_sample.columns]
 
         logical_types = {}
         pandas_dtypes = {}
@@ -143,11 +143,22 @@ async def load_csv_data(dataset_id: str, columns_to_load: list[str] = None) -> p
         _, _, pandas_dtypes_map = await infer_schema_from_csv(table_name)
         
         # Prepare dtypes for pd.read_csv. Only use dtypes for columns we are loading.
-        effective_dtypes = {
-            col: dtype 
-            for col, dtype in pandas_dtypes_map.items() 
-            if columns_to_load is None or col in columns_to_load
-        }
+        # effective_dtypes = {
+        #     col: dtype 
+        #     for col, dtype in pandas_dtypes_map.items() 
+        #     if columns_to_load is None or col in columns_to_load
+        # }
+        
+        parse_date_cols = []
+        effective_dtypes = {}
+
+        for col, dtype in pandas_dtypes_map.items():
+            if columns_to_load is not None and col not in columns_to_load:
+                continue
+            if dtype == "datetime64[ns]":
+                parse_date_cols.append(col)
+            else:
+                effective_dtypes[col] = dtype
 
         # Use asyncio.to_thread for the blocking pd.read_csv call
         df = await asyncio.to_thread(
@@ -155,11 +166,12 @@ async def load_csv_data(dataset_id: str, columns_to_load: list[str] = None) -> p
             file_path,
             usecols=columns_to_load,
             dtype=effective_dtypes,
+            parse_dates=parse_date_cols
             # na_filter=True, # default
             # low_memory=False # May help with mixed types, but dtype spec should handle
         )
         # Ensure column names match the sanitized ones from schema inference
-        df.columns = [col.strip().replace(" ", "_") for col in df.columns]
+        df.columns = [col.strip() for col in df.columns]
 
         # Perform full series datetime conversion if schema suggested it, but read_csv didn't fully parse
         # This is a fallback, as `dtype` in read_csv should ideally handle it.
@@ -250,6 +262,27 @@ async def get_chart_columns(dataset_id: int = Query(...), chart_type: str = Quer
     }
 
 
+# Grouping and aggregation can be CPU-bound, run in a thread
+def _perform_aggregation(df, x_col, y_col, x_type):
+    if x_type == "datetime":
+
+            summary = df.groupby(x_col)[y_col].mean().reset_index().sort_values(by=x_col)
+    elif x_type == "category" or x_type == "string":
+        # For categorical/string X, might want to limit top N categories if too many
+        # For simplicity, group by all.
+        summary = df.groupby(x_col)[y_col].mean().reset_index()
+        # Sort by y value for bar charts often makes sense, or by x_col alphabetically
+        summary = summary.sort_values(by=y_col, ascending=False) # Example: sort by value
+    else: # number
+        summary = df.groupby(x_col)[y_col].mean().reset_index()
+        if pd.api.types.is_numeric_dtype(summary[x_col]): # Sort numeric x-axis
+            summary = summary.sort_values(by=x_col)
+
+
+    # Convert x-axis to string for JSON serialization, esp. for datetimes/categories
+    summary[x_col] = summary[x_col].astype(str)
+    return summary
+
 @router.get("/get_summary/")
 async def get_summary(dataset_id: int = Query(...), x_column: str = Query(...), y_column: str = Query(None), bins: int = Query(10)):
     """
@@ -280,7 +313,7 @@ async def get_summary(dataset_id: int = Query(...), x_column: str = Query(...), 
             raise HTTPException(status_code=400, detail=f"For histogram, x_column ('{x_column}') must be numeric, but it's '{x_logical_type}'.")
         
         # Load only the necessary x_column
-        df_x = await load_csv_data(table, columns_to_load=[x_column])
+        df_x = await load_csv_data(dataset_id, columns_to_load=[x_column])
         df_x = df_x[[x_column]].dropna()
 
         if df_x.empty:
@@ -296,7 +329,7 @@ async def get_summary(dataset_id: int = Query(...), x_column: str = Query(...), 
             "x": x_labels,
             "y": hist.tolist()
         }
-
+        
     # Aggregation case (X and Y columns)
     if y_column not in all_columns:
         raise HTTPException(status_code=400, detail=f"Invalid y_column: '{y_column}' not found in table '{table}'.")
@@ -306,32 +339,11 @@ async def get_summary(dataset_id: int = Query(...), x_column: str = Query(...), 
         raise HTTPException(status_code=400, detail=f"For aggregation, y_column ('{y_column}') must be numeric, but it's '{y_logical_type}'.")
 
     # Load only x_column and y_column
-    df_xy = await load_csv_data(table, columns_to_load=[x_column, y_column])
+    df_xy = await load_csv_data(dataset_id, columns_to_load=[x_column, y_column])
     df_xy = df_xy[[x_column, y_column]].dropna() # Drop rows where EITHER x or y is NA for aggregation
 
     if df_xy.empty:
         return {"x": [], "y": []}
-
-    # Grouping and aggregation can be CPU-bound, run in a thread
-    async def _perform_aggregation(df, x_col, y_col, x_type):
-        if x_type == "datetime":
-
-             summary = df.groupby(x_col)[y_col].mean().reset_index().sort_values(by=x_col)
-        elif x_type == "category" or x_type == "string":
-            # For categorical/string X, might want to limit top N categories if too many
-            # For simplicity, group by all.
-            summary = df.groupby(x_col)[y_col].mean().reset_index()
-            # Sort by y value for bar charts often makes sense, or by x_col alphabetically
-            summary = summary.sort_values(by=y_col, ascending=False) # Example: sort by value
-        else: # number
-            summary = df.groupby(x_col)[y_col].mean().reset_index()
-            if pd.api.types.is_numeric_dtype(summary[x_col]): # Sort numeric x-axis
-                summary = summary.sort_values(by=x_col)
-
-
-        # Convert x-axis to string for JSON serialization, esp. for datetimes/categories
-        summary[x_col] = summary[x_col].astype(str)
-        return summary
 
     summary_df = await asyncio.to_thread(_perform_aggregation, df_xy, x_column, y_column, x_logical_type)
 

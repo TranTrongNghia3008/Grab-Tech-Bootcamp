@@ -152,18 +152,18 @@ export default function TuningTab({ sessionId, bestModelId, comparisonResults = 
     }
   };
   
-    const handleFetchTunedModelEvaluation = async () => {
-      setLoadingTunedModelEvaluation(true);
-      try {
-        const res = await getTunedModelEvaluation(tunedResultsForEvaluation);
-        
-        setTunedModelEvaluation(parseAISummary(res.summary_html)); 
-      } catch (err) {
-        console.error("Failed to fetch Tuned Model Evaluation:", err);
-      } finally {
-        setLoadingTunedModelEvaluation(false);
-      }
-    };
+  const handleFetchTunedModelEvaluation = async () => {
+    setLoadingTunedModelEvaluation(true);
+    try {
+      const res = await getTunedModelEvaluation(tunedResultsForEvaluation);
+      
+      setTunedModelEvaluation(parseAISummary(res.summary_html)); 
+    } catch (err) {
+      console.error("Failed to fetch Tuned Model Evaluation:", err);
+    } finally {
+      setLoadingTunedModelEvaluation(false);
+    }
+  };
 
   return (
     <div className="space-y-8">

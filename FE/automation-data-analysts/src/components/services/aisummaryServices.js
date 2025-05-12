@@ -33,18 +33,34 @@ export function getTunedModelEvaluation( tunedResultsForEvaluation, imageFile = 
     console.log("fixedTuningData", fixedTuningData)
 
     formData.append("tuning_data_json", JSON.stringify(fixedTuningData)); 
-  
+
     if (imageFile) {
-      formData.append("feature_importance_image", imageFile);
+        formData.append("feature_importance_image", imageFile);
     }
-  
+
     if (imageUrl) {
-      formData.append("image_url", imageUrl);
+        formData.append("image_url", imageUrl);
     }
-  
+
     return apiClient("/v1/tuned-model-evaluation", {
-      method: "POST",
-      body: formData,
+        method: "POST",
+        body: formData,
     });
-  }
+}
+  
+export function getBaselineModelEvaluation( {metrics, featureImageUrl = null}) {
+    const formData = new FormData();
+    formData.append("metrics_data_json", JSON.stringify(metrics)); 
+
+    console.log(featureImageUrl)
+
+    if (featureImageUrl) {
+        formData.append("feature_importance_image_path", `../FE/automation-data-analysts/public/${featureImageUrl}`);
+    }
+
+    return apiClient("/v1/baseline-model-evaluation", {
+        method: "POST",
+        body: formData,
+    });
+}
   
