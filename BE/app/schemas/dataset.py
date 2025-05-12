@@ -20,6 +20,10 @@ class DatasetPreview(BaseModel):
     total_col: int
     project_name: str
     
+class DataPreviewSchema(BaseModel):
+    columns: List[str]
+    data: List[List[Any]]
+    
 class DatasetInfo(BaseModel):
     """
     Information about a single dataset within a project.
@@ -36,6 +40,7 @@ class DatasetFlatInfo(BaseModel):
     created_at: datetime # Corresponds to Dataset.created_at
     is_model: Optional[bool]
     is_clean: Optional[bool]
+    data_preview: Optional[DataPreviewSchema] = None
 
     class Config:
         from_attributes = True # Allows easy mapping from SQLAlchemy model instances

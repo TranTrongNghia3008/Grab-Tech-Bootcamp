@@ -136,3 +136,12 @@ class AutoMLSessionUpdateStepStatus(BaseModel):
     overall_status: Optional[str] = None
     error_message: Optional[str] = None # Clear or set error message
     config: Optional[Dict[str, Any]] = None # Allow updating stored config
+    
+class AutoMLSessionResultsDetail(BaseModel):
+    session_id: int = Field(..., alias="id")
+    step1_results: Optional[Dict[str, Any]] = None
+    step2_results: Optional[Dict[str, Any]] = None
+    step3_results: Optional[Dict[str, Any]] = None
+
+    class Config:
+        from_attributes = True

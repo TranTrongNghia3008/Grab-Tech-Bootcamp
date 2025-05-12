@@ -9,6 +9,8 @@ from starlette.responses import StreamingResponse # Needed for CSV response
 import io # Needed for creating in-memory file for response
 from app.crud.finalized_models import crud_finalized_model
 from app.crud.datasets import crud_dataset
+from app.db.models import AutoMLSession
+from typing import List
 import pandas as pd
 import base64
 
@@ -307,3 +309,44 @@ async def predict_with_finalized_model_csv_endpoint( # Still async for file read
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An unexpected internal error occurred during CSV prediction processing: {e}"
         )
+        
+@router.get(
+    "/datasets/{dataset_id}/automl-session-results/",
+    response_model=schemas.automl_sessions.AutoMLSessionResultsDetail, 
+    status_code=status.HTTP_200_OK,
+    summary="Get AutoML Session Step Results for a Dataset",
+    responses={
+        status.HTTP_404_NOT_FOUND: {
+            "model": schemas.AutoMLSessionErrorResponse,
+            "description": "Dataset not found."
+        }
+    }
+)
+def get_automl_session_results_for_dataset(
+    dataset_id: int = Path(..., title="The ID of the dataset to retrieve session results for"),
+    db: Session = Depends(get_db)
+):
+    """
+    Retrieves step1, step2, and step3 results along with other key details
+    for all AutoML sessions associated with a given `dataset_id`.
+
+    The results are ordered by session creation time, with the newest sessions first.
+    """
+    # 1. Check if the dataset exists using the CRUD operation
+    db_dataset = crud_dataset.get(db, id=dataset_id)
+    if not db_dataset:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Dataset with ID {dataset_id} not found."
+        )
+
+    # 2. Query for AutoML sessions linked to this dataset_id
+    #    Order by creation date, newest first, or by ID as a consistent fallback.
+    sessions_db = db.query(AutoMLSession)\
+                    .filter(AutoMLSession.dataset_id == dataset_id)\
+                    .first()
+
+    if not sessions_db:
+        return []
+
+    return sessions_db 

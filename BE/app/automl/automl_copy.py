@@ -1396,6 +1396,9 @@ class AutoMLRunner:
                     sample_frac = self.config.get("sample_fraction")
                     sample_n = self.config.get("sample_n")
                     random_state = self.config.get("session_id")
+                    
+                    if len(full_data) >= 500000:
+                        sample_frac = 0.1
 
                     if sample_n is not None and sample_n > 0:
                         sample_n = min(sample_n, len(full_data))
@@ -1638,7 +1641,11 @@ class AutoMLRunner:
                     logger.info(f"Attempting load with pre-defined task type: {task_type_for_load}")
                     try: # Pass data to load_experiment for consistency
                         data_for_load = pd.read_csv(self.config['data_file_path'])
-                        if self.config.get('optimize_pandas_dtypes', True): 
+                        if len(data_for_load) >= 500000:
+                            random_state = self.config.get("session_id")
+                            data_for_load = data_for_load.sample(frac=0.3, random_state=random_state)
+                            
+                        if self.config.get('optimize_pandas_dtypes', True):
                             data_for_load = optimize_dtypes(data_for_load, self.config) # optimize dtypes
                         loaded_env = pycaret_module_for_load.load_experiment(experiment_path, data=data_for_load)
                         self.pycaret_module = pycaret_module_for_load
@@ -1649,6 +1656,10 @@ class AutoMLRunner:
                     logger.warning("Task type not explicit. Attempting fallback load...")
                     try:
                          data_for_load = pd.read_csv(self.config['data_file_path'])
+                         if len(data_for_load) >= 500000:
+                            random_state = self.config.get("session_id")
+                            data_for_load = data_for_load.sample(frac=0.3, random_state=random_state)
+                            
                          if self.config.get('optimize_pandas_dtypes', True): 
                              data_for_load = optimize_dtypes(data_for_load, self.config)
                          loaded_env = pyclf.load_experiment(experiment_path, data=data_for_load)
@@ -1657,6 +1668,10 @@ class AutoMLRunner:
                          logger.warning("Failed clf load, trying reg...")
                          try:
                              data_for_load = pd.read_csv(self.config['data_file_path'])
+                             
+                             if len(data_for_load) >= 500000:
+                                random_state = self.config.get("session_id")
+                                data_for_load = data_for_load.sample(frac=0.3, random_state=random_state)
                              if self.config.get('optimize_pandas_dtypes', True): 
                                  data_for_load = optimize_dtypes(data_for_load, self.config)
                              loaded_env = pyreg.load_experiment(experiment_path, data=data_for_load)
