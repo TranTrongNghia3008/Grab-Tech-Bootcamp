@@ -8,11 +8,17 @@ from app.api.v1.dependencies import get_db
 from starlette.responses import StreamingResponse # Needed for CSV response
 import io # Needed for creating in-memory file for response
 from app.crud.finalized_models import crud_finalized_model
+from app.schemas.finalized_models import FinalizedModelInfo
 from app.crud.datasets import crud_dataset
-from app.db.models import AutoMLSession
+from app.db.models import AutoMLSession, FinalizedModel, Dataset
 from typing import List
 import pandas as pd
 import base64
+from sqlalchemy.ext.asyncio import AsyncSession # Assuming async setup
+from sqlalchemy.future import select # Use future select for modern SQLAlchemy
+from sqlalchemy.orm import joinedload, selectinload # Efficiently load related data
+from starlette.responses import FileResponse # To send the file
+import os
 
 
 # Define the API router
@@ -229,7 +235,7 @@ async def predict_with_finalized_model_csv_endpoint( # Still async for file read
     """
     # Basic check for CSV MIME type (optional but recommended)
     if file.content_type not in ['text/csv', 'application/vnd.ms-excel', 'text/plain']: # Allow text/plain sometimes
-         await file.close() # Close the file before raising
+         file.close() # Close the file before raising
          raise HTTPException(
              status_code=status.HTTP_400_BAD_REQUEST,
              detail=f"Invalid file type. Please upload a CSV file. Received: {file.content_type}"
@@ -239,7 +245,7 @@ async def predict_with_finalized_model_csv_endpoint( # Still async for file read
     full_csv_base64_str = None
     try:
         # Call the service function - it returns the FULL DataFrame
-        result_df = await automl_service.run_prediction_from_csv(db, finalized_model_id, file) # File is closed inside service
+        result_df = automl_service.run_prediction_from_csv(db, finalized_model_id, file) # File is closed inside service
 
         # --- Generate Preview ---
         preview_rows = min(5, len(result_df))
@@ -300,7 +306,7 @@ async def predict_with_finalized_model_csv_endpoint( # Still async for file read
         # Ensure file is closed if error happened before service call finished
         if file and hasattr(file, 'file') and not file.file.closed:
             print(f"Closing file: {file.filename}")
-            await file.close()
+            file.close()
         elif file and hasattr(file, 'file') and file.file.closed:
             print(f"File already closed: {file.filename}")
         elif file:
@@ -349,4 +355,115 @@ def get_automl_session_results_for_dataset(
     if not sessions_db:
         return []
 
-    return sessions_db 
+    return sessions_db
+
+@router.get(
+    "/datasets/{dataset_id}/finalized-models",
+    response_model=list[FinalizedModelInfo],
+    summary="List finalized models for a specific dataset",
+    tags=["Finalized Models"]
+)
+def list_finalized_models_for_dataset(
+    dataset_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Retrieves a list of all finalized models associated with the given dataset ID.
+    This involves finding AutoML sessions linked to the dataset and then their
+    corresponding finalized models.
+    """
+    # Check if dataset exists (optional, but good practice)
+    dataset = db.get(Dataset, dataset_id)
+    if not dataset:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Dataset with id {dataset_id} not found"
+        )
+
+    # Query to join FinalizedModel -> AutoMLSession and filter by dataset_id
+    stmt = (
+        select(FinalizedModel)
+        .join(FinalizedModel.automl_sessions) # Use the relationship name
+        .where(AutoMLSession.dataset_id == dataset_id)
+        .options(
+            # Eagerly load the related AutoMLSession to get its name easily
+            # Use selectinload for one-to-many/many-to-many from parent perspective
+            # Use joinedload for many-to-one/one-to-one from child perspective
+            joinedload(FinalizedModel.automl_sessions)
+        )
+    )
+    result = db.execute(stmt)
+    finalized_models = result.scalars().unique().all() # .unique() needed due to join
+
+    # Map to Pydantic schema, extracting session name
+    response_data = []
+    for model in finalized_models:
+        response_data.append(
+            FinalizedModelInfo(
+                id=model.id,
+                session_id=model.session_id,
+                automl_session_name=model.automl_sessions.name if model.automl_sessions else "Unknown Session",
+                model_name=model.model_name,
+                created_at=model.created_at
+            )
+        )
+
+    return response_data
+
+@router.get(
+    "/finalized-models/{finalized_model_id}/download",
+    response_class=FileResponse, # Key part for file download
+    summary="Download a specific finalized model (.pkl file)",
+    tags=["Finalized Models"]
+)
+def download_finalized_model(
+    finalized_model_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Downloads the .pkl model file associated with the given finalized_model_id.
+    """
+    # Get the FinalizedModel record from the database
+    model = db.get(FinalizedModel, finalized_model_id)
+
+    if not model:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"FinalizedModel with id {finalized_model_id} not found"
+        )
+
+    file_path = model.saved_model_path
+
+    # --- Security and Existence Check ---
+    # Basic check: Does the file exist?
+    if not os.path.isfile(file_path):
+        # Log this error server-side as it indicates an inconsistency
+        print(f"ERROR: File not found for FinalizedModel {finalized_model_id}: {file_path}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, # Or 404 if you prefer user not know why
+            detail="Model file not found on server."
+        )
+
+    # Optional stronger check: Ensure the path is within an expected base directory
+    # to prevent potential path traversal if save paths could be manipulated.
+    # Example:
+    # ALLOWED_BASE_PATH = "/path/to/your/safe/model/storage"
+    # if not os.path.abspath(file_path).startswith(ALLOWED_BASE_PATH):
+    #     print(f"SECURITY WARNING: Attempt to access file outside allowed path: {file_path}")
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Access to the specified file path is forbidden."
+    #     )
+    # --- End Security Check ---
+
+
+    # Extract filename for the download prompt
+    filename = os.path.basename(file_path)
+    # Suggest a potentially more user-friendly download name (optional)
+    suggested_filename = f"{model.model_name}_session{model.session_id}.pkl"
+
+    return FileResponse(
+        path=file_path,
+        filename=suggested_filename, # Name suggested to the user for saving
+        media_type='application/octet-stream' # Standard for binary file download
+    )
