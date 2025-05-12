@@ -13,7 +13,7 @@ class FinalizedModel(Base):
         Integer,
         ForeignKey("automl_sessions.id", ondelete="CASCADE"), # Points to AutoMLSession PK
         nullable=False,  # Cannot exist without a session
-        unique=True,     # Enforces one-to-one at DB level
+        #unique=True,     # Enforces one-to-one at DB level
         index=True       # Good to index foreign keys
     )
     model_name = Column(String, nullable=False)
