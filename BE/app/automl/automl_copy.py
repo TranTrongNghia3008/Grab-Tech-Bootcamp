@@ -1397,7 +1397,7 @@ class AutoMLRunner:
                     sample_n = self.config.get("sample_n")
                     random_state = self.config.get("session_id")
                     
-                    if len(full_data) >= 1000000:
+                    if len(full_data) >= 500000:
                         sample_frac = 0.1
 
                     if sample_n is not None and sample_n > 0:
@@ -1641,7 +1641,7 @@ class AutoMLRunner:
                     logger.info(f"Attempting load with pre-defined task type: {task_type_for_load}")
                     try: # Pass data to load_experiment for consistency
                         data_for_load = pd.read_csv(self.config['data_file_path'])
-                        if len(data_for_load) >= 1000000:
+                        if len(data_for_load) >= 500000:
                             random_state = self.config.get("session_id")
                             data_for_load = data_for_load.sample(frac=0.3, random_state=random_state)
                             
@@ -1656,7 +1656,7 @@ class AutoMLRunner:
                     logger.warning("Task type not explicit. Attempting fallback load...")
                     try:
                          data_for_load = pd.read_csv(self.config['data_file_path'])
-                         if len(data_for_load) >= 1000000:
+                         if len(data_for_load) >= 500000:
                             random_state = self.config.get("session_id")
                             data_for_load = data_for_load.sample(frac=0.3, random_state=random_state)
                             
@@ -1669,7 +1669,7 @@ class AutoMLRunner:
                          try:
                              data_for_load = pd.read_csv(self.config['data_file_path'])
                              
-                             if len(data_for_load) >= 1000000:
+                             if len(data_for_load) >= 500000:
                                 random_state = self.config.get("session_id")
                                 data_for_load = data_for_load.sample(frac=0.3, random_state=random_state)
                              if self.config.get('optimize_pandas_dtypes', True): 
