@@ -245,7 +245,7 @@ async def predict_with_finalized_model_csv_endpoint( # Still async for file read
     full_csv_base64_str = None
     try:
         # Call the service function - it returns the FULL DataFrame
-        result_df = automl_service.run_prediction_from_csv(db, finalized_model_id, file) # File is closed inside service
+        result_df = await automl_service.run_prediction_from_csv(db, finalized_model_id, file) # File is closed inside service
 
         # --- Generate Preview ---
         preview_rows = min(5, len(result_df))
