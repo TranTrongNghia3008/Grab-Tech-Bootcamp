@@ -196,8 +196,8 @@ def run_step1_setup_and_compare(db: Session, params: schemas.AutoMLSessionStartS
              step1_results_dict["experiment_save_path"] = exp_path
              # Optionally add best model ID or summary of comparison results
              if isinstance(compare_df, pd.DataFrame) and not compare_df.empty:
-                  step1_results_dict["best_model_id"] = compare_df.index[0] # Example
-                  # step1_results_dict["comparison_summary"] = compare_df.head().to_dict('records') # Example
+                  #step1_results_dict["best_model_id"] = compare_df.index[0] # Example
+                  step1_results_dict["comparison_summary"] = compare_df.head().to_dict('records') # Example
 
         # Use the step-specific update method
         update_kwargs = {
