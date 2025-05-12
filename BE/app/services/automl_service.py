@@ -5,6 +5,7 @@ from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session # Sync Session
 from pydantic import BaseModel
 from typing import Dict, Any, Callable, Tuple, Optional
+from fastapi.encoders import jsonable_encoder
 import pandas as pd
 import io
 from app.utils.file_storage import get_cleaned_df_path
@@ -248,8 +249,12 @@ def run_step1_setup_and_compare(db: Session, params: schemas.AutoMLSessionStartS
         "comparison_results": comparison_results_schema,
         "error_message": None
     }
+    
+    response_model = schemas.AutoMLSessionStep1Response(**response_data)
+    
+    crud_automl_session.update_atomic(db, id=current_session_id, values={'step1_results': jsonable_encoder(response_model)})
 
-    return schemas.AutoMLSessionStep1Response(**response_data)
+    return response_model
 
 
 # --- Service Function for Step 2 ---
@@ -425,6 +430,7 @@ def run_step2_tune_and_analyze(db: Session, session_id: int, params: schemas.Aut
     # Validate response data against the schema before returning
     try:
         validated_response = AutoMLSessionStep2Result(**response_data)
+        crud_automl_session.update_atomic(db, id=session_id, values={'step2_results': jsonable_encoder(validated_response)})
         return validated_response
     except Exception as validation_e:
         print(f"Error creating response for Step 2: {validation_e}")
@@ -636,6 +642,7 @@ def run_step3_finalize_and_save(db: Session, session_id: int, params: schemas.Au
 
     try:
         validated_response = schemas.AutoMLSessionStep3Result(**response_data)
+        crud_automl_session.update_atomic(db, id=session_id, values={'step3_results': jsonable_encoder(validated_response)})
         return validated_response
     except Exception as validation_e:
         print(f"Error creating response for Step 3: {validation_e}")
