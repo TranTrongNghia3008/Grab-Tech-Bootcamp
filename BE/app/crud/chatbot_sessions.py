@@ -163,3 +163,49 @@ def update_chat_name_by_ids(
     db.refresh(session)
     logger.info(f"Updated chat_name for session {session_uuid} to '{new_chat_name}'")
     return session
+
+
+def delete_session_state(db: Session, dataset_id: int, session_uuid: str) -> int:
+    """
+    Deletes a specific ChatSessionState identified by dataset_id and session_uuid.
+
+    This function finds the session and deletes it directly. If the relationship
+    to JourneyLogEntry has appropriate cascade options (like "all, delete-orphan"),
+    related log entries will also be deleted.
+
+    Args:
+        db: The SQLAlchemy database session.
+        dataset_id: The ID of the dataset associated with the session.
+        session_uuid: The UUID of the session to delete.
+
+    Returns:
+        int: 1 if the session was successfully deleted, 0 otherwise (not found or error).
+    """
+    logger.info(f"Attempting to delete session: dataset_id={dataset_id}, session_uuid={session_uuid}")
+    try:
+        # Step 1: Find the specific session object
+        session_to_delete = db.query(ChatSessionState)\
+            .filter(ChatSessionState.dataset_id == dataset_id,
+                    ChatSessionState.session_uuid == session_uuid)\
+            .first() # Use first() to get one object or None
+
+        # Step 2: Check if the session was found
+        if session_to_delete:
+            # Step 3: Delete the object using the session context
+            db.delete(session_to_delete)
+
+            # Step 4: Commit the transaction to make the deletion permanent
+            db.commit()
+            logger.info(f"Successfully deleted session: dataset_id={dataset_id}, session_uuid={session_uuid}")
+            return 1 # Indicate one record was deleted
+        else:
+            # Session wasn't found, nothing to delete
+            logger.warning(f"Session not found for deletion: dataset_id={dataset_id}, session_uuid={session_uuid}")
+            return 0 # Indicate zero records were deleted
+
+    except Exception as e:
+        # Log any errors during the process
+        logger.error(f"Error occurred while deleting session (dataset_id={dataset_id}, session_uuid={session_uuid}): {e}", exc_info=True)
+        # Rollback the transaction in case of error to avoid partial changes
+        db.rollback()
+        return 0 

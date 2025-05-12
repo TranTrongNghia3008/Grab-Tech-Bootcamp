@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form, Query
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form, Query, status, Body
 import io
 from typing import List, Optional, Any
 from datetime import datetime
@@ -7,7 +7,17 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy import create_engine
 import pandas as pd
 from app.crud.datasets import DatasetCreateSchema, DatasetUpdateSchema
-from app.schemas.dataset import DatasetFromConnection, DatasetId, DatasetPreview, DatasetFlatListResponse, DatasetAnalysisReport, DatasetFlatInfo, DataPreviewSchema
+from app.schemas.dataset import (
+    DatasetFromConnection, 
+    DatasetId, 
+    DatasetPreview, 
+    DatasetFlatListResponse, 
+    DatasetAnalysisReport, 
+    DatasetFlatInfo, 
+    DataPreviewSchema, 
+    DetailResponse,
+    DatasetUpdateProjectName
+)
 
 # Import CRUD functions for datasets and connections
 from app.crud.datasets import crud_dataset
@@ -17,6 +27,8 @@ from app.crud.connections import get_connection_by_id
 from app.api.v1.dependencies import get_db
 from app.utils.file_storage import save_dataframe_as_csv, get_file_path, load_csv_as_dataframe
 from app import schemas
+from ydata_profiling import ProfileReport
+from fastapi.responses import FileResponse, HTMLResponse
 
 # --- API Router Setup ---
 router = APIRouter(
@@ -430,3 +442,182 @@ async def get_dataset_analysis_report(dataset_id: int, db: Session = Depends(get
         # Log this error for debugging
         print(f"Unexpected error during dataset analysis for ID {dataset_id}: {e}")
         raise HTTPException(status_code=500, detail="An unexpected error occurred while analyzing the dataset.")
+    
+@router.delete(
+    "/datasets/{dataset_id}",
+    response_model=DetailResponse, # Response is a simple message
+    status_code=status.HTTP_200_OK, # Or 204 if you prefer no content
+    summary="Delete a dataset",
+    tags=["Datasets"],
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "Dataset not found"},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"description": "Internal server error during deletion"},
+        # Add others if applicable (e.g., 403 Forbidden)
+    }
+)
+def delete_dataset(
+    *,
+    db: Session = Depends(get_db),
+    dataset_id: int
+) -> DetailResponse:
+    """
+    Deletes a dataset specified by its ID.
+
+    This will also delete associated records if cascade options are set
+    (e.g., CleaningJob, AutoMLSession, ChatSessionState).
+    """
+
+    # Use the remove method from CRUDBase via crud_dataset instance
+    deleted_dataset = crud_dataset.remove(db=db, id=dataset_id)
+
+    if not deleted_dataset:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Dataset with id {dataset_id} not found."
+        )
+
+    return DetailResponse(detail=f"Dataset with id {dataset_id} deleted successfully.")
+
+@router.patch(
+    "/datasets/{dataset_id}/project_name", # More specific path for updating just the name
+    response_model=DatasetFlatInfo, # Return updated dataset info
+    status_code=status.HTTP_200_OK,
+    summary="Update dataset project name",
+    tags=["Datasets"],
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "Dataset not found"},
+        status.HTTP_409_CONFLICT: {"description": "Project name already exists"},
+        status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Validation error (e.g., empty string)"},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"description": "Internal server error during update"},
+    }
+)
+def update_dataset_project_name(
+    *,
+    db: Session = Depends(get_db),
+    dataset_id: int,
+    update_data: DatasetUpdateProjectName = Body(...) # Get data from request body
+) -> DatasetFlatInfo:
+    """
+    Updates the 'project_name' for a specific dataset.
+    The new name must be unique across all datasets if it is not null.
+    """
+
+    # Use the specific CRUD method
+    updated_dataset, error_msg = crud_dataset.update_project_name(
+        db=db,
+        dataset_id=dataset_id,
+        new_project_name=update_data.project_name
+    )
+
+    if error_msg:
+        # Check if the dataset itself was found but validation failed
+        if updated_dataset is not None: # Dataset exists, but name conflict or DB error
+             if "already exists" in error_msg:
+                 status_code = status.HTTP_409_CONFLICT
+             else: # Other database error during commit
+                 status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+             raise HTTPException(status_code=status_code, detail=error_msg)
+        else:
+              raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Inconsistent server state during update.")
+
+
+    if updated_dataset is None:
+        # This means the initial get in update_project_name returned None -> dataset not found
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Dataset with id {dataset_id} not found."
+        )
+
+    return updated_dataset
+
+@router.get(
+    "/datasets/{dataset_id}/profile/download",
+    summary="Generate and download ydata-profiling report",
+    tags=["Datasets", "Profiling"],
+    responses={
+        status.HTTP_200_OK: {
+            "content": {"text/html": {}},
+            "description": "Returns the ydata-profiling report as an HTML file attachment.",
+        },
+        status.HTTP_404_NOT_FOUND: {"description": "Dataset not found or source file missing"},
+        status.HTTP_409_CONFLICT: {"description": "Dataset found but has no associated file path"},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"description": "Error loading data or generating profile"},
+    }
+)
+def download_dataset_profile(
+    *,
+    db: Session = Depends(get_db),
+    dataset_id: int
+) -> HTMLResponse: # Return HTMLResponse directly
+    """
+    Generates a ydata-profiling report for the specified dataset
+    and returns it as an HTML file for download.
+
+    *Note: This can be resource-intensive for large datasets.*
+    """
+
+    # 1. Get Dataset information
+    db_dataset = crud_dataset.get(db=db, id=dataset_id)
+    if not db_dataset:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Dataset with id {dataset_id} not found."
+        )
+
+    if not db_dataset.file_path:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, # Conflict state: dataset exists but unusable for this
+            detail=f"Dataset {dataset_id} does not have a source file path configured."
+        )
+
+    # 2. Load DataFrame
+    try:
+        df = load_csv_as_dataframe(db_dataset.file_path)
+        if df.empty:
+             # You might want to return a specific message or an empty report
+             raise HTTPException(
+                 status_code=status.HTTP_400_BAD_REQUEST, # Or maybe 200 with an empty report message?
+                 detail=f"The dataset file for id {dataset_id} is empty."
+             )
+
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, # Treat missing file as Not Found resource dependency
+            detail=f"Source data file not found for dataset id {dataset_id}."
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to load data for dataset id {dataset_id}."
+        )
+
+    # 3. Generate Profile Report (consider options for large data)
+    try:
+        profile = ProfileReport(
+            df,
+            title=f"Dataset Profile: {db_dataset.project_name or f'ID {dataset_id}'}",
+        )
+
+        # Generate the HTML content directly
+        html_report_content = profile.to_html()
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate profile report for dataset id {dataset_id}."
+        )
+
+    # 4. Prepare and Return Response
+    # Define headers for download
+    file_name = f"dataset_{dataset_id}_profile.html"
+    headers = {
+        "Content-Disposition": f"attachment; filename=\"{file_name}\""
+    }
+
+    # Return the generated HTML content using HTMLResponse
+    return HTMLResponse(
+        content=html_report_content,
+        status_code=status.HTTP_200_OK,
+        headers=headers,
+        media_type="text/html" # Explicitly set media type
+    )

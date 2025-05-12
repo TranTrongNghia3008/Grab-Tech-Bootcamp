@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Any, List, Optional
 from .commons import DataFrameStructure
 from datetime import datetime
@@ -77,3 +77,20 @@ class DatasetAnalysisReport(BaseModel):
 
     class Config:
         from_attributes = True # If you ever build this from an ORM object directly
+        
+class DetailResponse(BaseModel):
+    detail: str
+    
+class DatasetUpdateProjectName(BaseModel):
+    """Schema for updating the project name."""
+    project_name: Optional[str] = Field(
+        default=None, # Allow unsetting the name by passing null
+        max_length=255, # Good practice
+        description="The new project name. Must be unique across datasets if not null."
+    )
+
+    @field_validator('project_name')
+    def name_cannot_be_empty_string(cls, v):
+        if v == "":
+            raise ValueError("Project name cannot be an empty string, use null to clear.")
+        return v

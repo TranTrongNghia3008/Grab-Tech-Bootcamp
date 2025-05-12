@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Header, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Header, Query, BackgroundTasks, status, Body
 from sqlalchemy.orm import Session
 from typing import List, Dict, Tuple, Optional
 import time
@@ -475,3 +475,100 @@ async def list_sessions_for_dataset(
         dataset_id=dataset_id,
         sessions=session_infos
     )
+    
+@router.delete(
+    "/datasets/{dataset_id}/sessions/{session_uuid}",
+    # response_model=DetailResponse, # Use if returning the DetailResponse model
+    status_code=status.HTTP_200_OK, # Can also use 204 No Content if preferred
+    summary="Delete a specific chat session",
+    tags=["Chat Sessions"],
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "Chat session not found"},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"description": "Internal server error during deletion"},
+    }
+)
+def delete_chat_session(
+    *,
+    db: Session = Depends(get_db), # Inject DB session
+    dataset_id: int,                   # Get dataset_id from path
+    session_uuid: str                  # Get session_uuid from path
+) -> chatbot_schemas.DetailResponse: # Specify the return type hint
+    """
+    Deletes the chat session state identified by the dataset ID and session UUID.
+
+    If the session exists, it will be deleted from the database.
+    If the underlying database relationship has cascade delete configured for
+    associated JourneyLogEntry records, they will also be removed.
+    """
+    logger.info(f"Received request to delete session: dataset_id={dataset_id}, session_uuid={session_uuid}")
+
+    deleted_count = crud_chatbot_session.delete_session_state(
+        db=db,
+        dataset_id=dataset_id,
+        session_uuid=session_uuid
+    )
+
+    if deleted_count == 0:
+        # The CRUD function handles logging the "not found" case internally,
+        # but we raise the HTTP exception here for the client.
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Chat session not found for dataset_id {dataset_id} and session_uuid {session_uuid}"
+        )
+    elif deleted_count == 1:
+         # Successfully deleted
+        logger.info(f"API endpoint confirmed deletion for session: dataset_id={dataset_id}, session_uuid={session_uuid}")
+        # Return a success message (adjust if you prefer 204 No Content)
+        return chatbot_schemas.DetailResponse(detail="Chat session deleted successfully")
+    else:
+        # This case shouldn't happen with the current CRUD logic (returns 0 or 1),
+        # but good practice to handle unexpected return values.
+        logger.error(f"Unexpected return value from delete_session_state: {deleted_count}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred during session deletion."
+        )
+        
+@router.patch(
+    "/datasets/{dataset_id}/sessions/{session_uuid}", # Use PATCH on the session resource URL
+    response_model=chatbot_schemas.ChatSessionResponse, # Specify the response schema
+    status_code=status.HTTP_200_OK,
+    summary="Update chat session name",
+    tags=["Chat Sessions"],
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "Chat session not found"},
+        status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Validation error in request body"},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"description": "Internal server error during update"},
+    }
+)
+def update_chat_session_name(
+    *,
+    db: Session = Depends(get_db),
+    dataset_id: int,
+    session_uuid: str,
+    update_data: chatbot_schemas.ChatSessionUpdateName = Body(...) # Get data from request body, parsed into the schema
+) -> chatbot_schemas.ChatSessionResponse:
+    """
+    Updates the 'chat_name' for a specific chat session identified by
+    dataset ID and session UUID.
+    """
+    logger.info(f"Received request to update chat_name for session: dataset_id={dataset_id}, session_uuid={session_uuid}")
+
+    # Use the existing CRUD function
+    updated_session = crud_chatbot_session.update_chat_name_by_ids(
+        db=db,
+        dataset_id=dataset_id,
+        session_uuid=session_uuid,
+        new_chat_name=update_data.chat_name # Pass the name from the request body schema
+    )
+
+    if updated_session is None:
+        # CRUD function returns None if session wasn't found
+        logger.warning(f"Session not found for name update: dataset_id={dataset_id}, session_uuid={session_uuid}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Chat session not found for dataset_id {dataset_id} and session_uuid {session_uuid}"
+        )
+
+    logger.info(f"Successfully updated chat_name for session: dataset_id={dataset_id}, session_uuid={session_uuid} to '{update_data.chat_name}'")
+    return updated_session

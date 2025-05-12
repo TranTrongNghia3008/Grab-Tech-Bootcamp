@@ -8,6 +8,7 @@ from app.db.models.datasets import Dataset
 from app.crud.base import CRUDBase
 from app.schemas.dataset import DatasetInfo, DatasetAnalysisReport, FeatureProfile
 from app.utils.file_storage import get_file_path, load_csv_as_dataframe
+from ydata_profiling import ProfileReport
 
 
 def map_dtype_to_simplified_type(dtype_obj, series: pd.Series) -> str:
