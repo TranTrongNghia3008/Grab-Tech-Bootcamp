@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { FaCogs, FaCalculator, FaDownload } from "react-icons/fa";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
-import { Card, Button } from "../../components/ui";
+import { Card, Button, Modal } from "../../components/ui";
 import DataTable from "../../components/DataTable";
 import AnalyzeModel from "./AnalyzeModel";
 import { finalizeModel, tuningSession } from "../../components/services/modelingServices";
@@ -9,7 +9,7 @@ import { useAppContext } from "../../contexts/AppContext";
 import { getTunedModelEvaluation } from "../../components/services/aisummaryServices";
 import { parseAISummary } from "../../utils/parseHtml";
 
-export default function TuningTab({ sessionId, bestModelId, comparisonResults = [], setIsFinalized, setFinalizedModelId }) {
+export default function TuningTab({ sessionId, bestModelId, comparisonResults = [], setIsFinalized }) {
   const { state, updateState } = useAppContext();
   const { tuningResults } = state;
   const [modelType, setModelType] = useState("");
@@ -21,7 +21,9 @@ export default function TuningTab({ sessionId, bestModelId, comparisonResults = 
   const [cvMetrics, setCvMetrics] = useState([]);
   const [showErrors, setShowErrors] = useState(false);
   const [availableModels, setAvailableModels] = useState([]);
-  const [isloadingFinalized, setIsLoadingFinalized] = useState(false);
+  const [isLoadingFinalized, setIsLoadingFinalized] = useState(false);
+  const [showFinalizeModal, setShowFinalizeModal] = useState(false);
+  const [modelNameInput, setModelNameInput] = useState("");
   const [tunedModelPath, setTunedModelPath] = useState(null);
   const [tunedFeatureImportancePlotPath, setTunedFeatureImportancePlotPath] = useState(null);
   const [tunedResultsForEvaluation, setTunedResultsForEvaluation] = useState(null);
@@ -141,10 +143,10 @@ export default function TuningTab({ sessionId, bestModelId, comparisonResults = 
   const handleFinalizeModel = async () => {
     try {
       setIsLoadingFinalized(true);
-      const finalizeResults = await finalizeModel(sessionId, modelType);
-      console.log("Finalize results:", finalizeResults);
-      setFinalizedModelId(finalizeResults.finalized_model_db_id);
+      const res = await finalizeModel(sessionId, modelNameInput);
+      console.log("Finalize results:", res);
       setIsFinalized(true);
+      setShowFinalizeModal(false);
     } catch (error) {
       console.error("Failed to finalize model:", error);
     } finally {
@@ -285,9 +287,36 @@ export default function TuningTab({ sessionId, bestModelId, comparisonResults = 
           <Button onClick={handleDownloadModel}>
             <FaDownload className="mr-2" /> Download tuned model
           </Button>
-          <Button variant="outline" onClick={handleFinalizeModel} disabled={isloadingFinalized}>
-            {isloadingFinalized ? "Finalizing..." : "Finalize Model"}
+          <Button variant="outline" onClick={() => setShowFinalizeModal(true)}>
+            Finalize Model
           </Button>
+          {showFinalizeModal && (
+          <Modal title="Finalize Model" onClose={() => setShowFinalizeModal(false)}>
+            <div className="space-y-4 text-sm">
+              <label className="block font-medium text-gray-700">
+                Model Name:
+                <input
+                  type="text"
+                  value={modelNameInput}
+                  onChange={(e) => setModelNameInput(e.target.value)}
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
+                  placeholder="e.g. Best Ridge Model"
+                />
+              </label>
+
+              <div className="text-right space-x-2">
+                <Button variant="muted" onClick={() => setShowFinalizeModal(false)}>Cancel</Button>
+                <Button
+                  onClick={handleFinalizeModel}
+                  disabled={isLoadingFinalized || !modelNameInput.trim()}
+                >
+                  {isLoadingFinalized ? "Finalizing..." : "Confirm"}
+                </Button>
+              </div>
+            </div>
+          </Modal>
+        )}
+
         </div>
       )}
     </div>

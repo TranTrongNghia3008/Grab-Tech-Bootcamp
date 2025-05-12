@@ -52,7 +52,7 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
     const fetchAutoMLResults = async () => {
       try {
         const results = await getAutoMLResults(datasetId)
-        updateState({sessionId: results.step1_results.session_id, autoMLResults: results.step1_results});
+        updateState({sessionId: results.step1_results.session_id, autoMLResults: results});
       } catch (error) {
         console.error("Failed to fetch AutoML Results:", error);
       }
@@ -183,7 +183,7 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
       setAnalyzing(false);
       console.log("Finished analyzing and training models!");
       console.log("Results:", results);
-      updateState({sessionId: results.session_id, autoMLResults: results});
+      updateState({sessionId: results.session_id, autoMLResults: { step1_results: results }});
       setIsTargetFeatureSelected(true); 
       setAnalyzingStatus("completed");
       setNote(<>Now explore the <strong>Data Insight</strong>, <strong>Modeling</strong>, and <strong>Export</strong> tabs.</>)

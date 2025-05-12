@@ -17,7 +17,6 @@ export default function ModelingPanel() {
   const { datasetId, sessionId, autoMLResults, target, features, columns} = state;
   const [activeTab, setActiveTab] = useState("Baseline");
   const [isFinalized, setIsFinalized] = useState(false);
-  const [finalizedModelId, setFinalizedModelId] = useState(null);
   const [modelPerformanceAnalysis, setModelPerformanceAnalysis] = useState(null);
   const [loadingModelPerformanceAnalysis, setLoadingModelPerformanceAnalysis] = useState(false);
   const [setupModelModal, setSetupModelModal] = useState(0)
@@ -36,10 +35,10 @@ export default function ModelingPanel() {
   useEffect(() => {
     if (autoMLResults) 
       {
-        setComparisonResults(autoMLResults.comparison_results)
-        const formattedComparisonResults= autoMLResults.comparison_results.data.map(row => {
+        setComparisonResults(autoMLResults.step1_results.comparison_results)
+        const formattedComparisonResults= autoMLResults.step1_results.comparison_results.data.map(row => {
           const obj = {};
-          autoMLResults.comparison_results.columns.forEach((col, idx) => {
+          autoMLResults.step1_results.comparison_results.columns.forEach((col, idx) => {
             obj[col] = row[idx];
           });
           return obj;
@@ -54,6 +53,9 @@ export default function ModelingPanel() {
         setBestModel(best)
 
         console.log("ModelingPanel - comparisonResults:", formattedComparisonResults);
+
+        updateState({ turningResults: autoMLResults.step2_results })
+
       }
   }, [])
 
@@ -237,12 +239,11 @@ export default function ModelingPanel() {
             bestModelId={bestModel.index} 
             comparisonResults={comparisonResults} 
             setIsFinalized={setIsFinalized} 
-            setFinalizedModelId={setFinalizedModelId}
           />
         }
         {activeTab === "Prediction" && 
           <PredictionTab 
-            finalizedModelId={finalizedModelId} 
+            datasetId={datasetId}
           />
         }
       </div>
