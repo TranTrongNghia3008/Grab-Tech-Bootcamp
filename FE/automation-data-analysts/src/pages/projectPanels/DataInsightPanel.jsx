@@ -15,7 +15,7 @@ import { getAnalysisReport } from "../../components/services/datasetService";
 
 export default function DataInsightPanel() {
   const { state } = useAppContext(); 
-  const { datasetId } = state;
+  const { datasetId, isClean, columns } = state;
 
   const [stats, setStats] = useState(null);
   const [corr, setCorr] = useState(null);
@@ -359,7 +359,15 @@ export default function DataInsightPanel() {
 
       
       {/* Chart Generation */}
-      <ChartGeneration/>
+      {isClean ? (
+        <ChartGeneration datasetId={datasetId} columns={columns}/>
+      ): (
+        <p className="text-gray-400 italic ml-6">
+          Do you want to <strong>Generate Chart</strong>? If so, please clean the dataset. 
+        </p>
+      )
+      }
+      
     </div>
   );
 }
