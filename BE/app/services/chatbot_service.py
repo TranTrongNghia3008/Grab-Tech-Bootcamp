@@ -530,8 +530,6 @@ Frame them as if the user is asking me (the chatbot). For example:
 - "Which [categorical item] has the highest total [numerical value]?"
 
 Provide only the list of questions, each on a new line. Do not number them or add any other text.
-
-IMPORTANT: Ensure the entire output is a single HTML block.
 """
         try:
             # Use generate_content for one-off non-chat generation
