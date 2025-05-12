@@ -258,7 +258,7 @@ python-multipart==0.0.20
 python-oxmsg==0.0.2
 pytz==2022.7.1
 PyWavelets==1.8.0
-pywin32==310
+pywin32==306
 PyYAML==6.0.2
 querystring-parser==1.2.4
 RapidFuzz==3.13.0
