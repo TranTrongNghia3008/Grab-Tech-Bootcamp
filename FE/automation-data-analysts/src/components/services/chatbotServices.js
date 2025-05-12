@@ -1,7 +1,7 @@
 import apiClient from "./apiClient";
 
-export function startConversation(datasetId) {
-    return apiClient(`/sessions/start/${datasetId}`, {
+export function startConversation(datasetId, newName) {
+    return apiClient(`/sessions/start/${datasetId}?chat_name=${newName}`, {
         method: "POST",
     });
 }
@@ -38,4 +38,10 @@ export function clearHistory(datasetId, sessionId) {
     return apiClient(`/sessions/${datasetId}/clear-history?session_id=${sessionId}`, {
         method: "POST"
     })
+}
+
+export function getStarterQuestions(datasetId) {
+    return apiClient(`/starter-questions/${datasetId}`, {
+        method: "GET",
+    });
 }

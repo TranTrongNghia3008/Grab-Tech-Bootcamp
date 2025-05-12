@@ -1,5 +1,5 @@
 export function formatHistoryFromLogs(logs) {
-    console.log("logs: ", logs)
+  console.log("logs: ", logs)
   const history = [];
 
   for (let i = 0; i < logs.length; i++) {

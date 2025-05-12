@@ -1,27 +1,41 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FaBullseye, FaWrench } from "react-icons/fa";
 import { Tooltip } from 'react-tooltip';
-import { Card } from "../../components/ui";
+import { Loader2 } from "lucide-react";
+import { Card, Modal, Toast } from "../../components/ui";
 import BaselineTab from "./BaselineTab";
 import TuningTab from "./TuningTab";
 import PredictionTab from "./PredictionTab";
 import { useAppContext } from "../../contexts/AppContext";
 import { getModelPerformanceAnalysis } from "../../components/services/aisummaryServices";
 import { parseAISummary } from "../../utils/parseHtml";
+import SetupModelModal from "./SetupModelModal";
+import { autoMLSession } from "../../components/services/modelingServices";
 
 export default function ModelingPanel() {
-  const { state } = useAppContext();
-  const { datasetId, sessionId, comparisonResults, selectedTarget, selectedFeatures } = state;
+  const { state, updateState } = useAppContext();
+  const { datasetId, sessionId, comparisonResults, target, features, columns} = state;
   // const datasetId = 4; 
   const [activeTab, setActiveTab] = useState("Baseline");
   const [isFinalized, setIsFinalized] = useState(false);
   const [finalizedModelId, setFinalizedModelId] = useState(null);
   const [modelPerformanceAnalysis, setModelPerformanceAnalysis] = useState(null);
   const [loadingModelPerformanceAnalysis, setLoadingModelPerformanceAnalysis] = useState(false);
+  const [setupModelModal, setSetupModelModal] = useState(0)
+  const [selectedTarget, setSelectedTarget] = useState(null)
+  const [selectedFeatures, setSelectedFeatures] = useState([])
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analyzingStatus, setAnalyzingStatus] = useState(null);
+  const [showToastAnalyzing, setShowToastAnalyzing] = useState(false);
 
   console.log("ModelingPanel - datasetId:", datasetId);
   console.log("ModelingPanel - sessionId:", sessionId);
   console.log("ModelingPanel - comparisonResults:", comparisonResults);
+
+  useEffect(() => {
+    if (target) setSelectedTarget(target)
+    if (features) setSelectedFeatures(features)
+  }, [target, features])
 
   const formattedComparisonResults= comparisonResults.data.map(row => {
     const obj = {};
@@ -48,6 +62,34 @@ export default function ModelingPanel() {
     } finally {
       setLoadingModelPerformanceAnalysis(false);
     }
+  };
+
+  useEffect(() => {
+    if (analyzingStatus === "completed" || analyzingStatus === "failed") {
+      setShowToastAnalyzing(true);
+      setTimeout(() => {
+        setShowToastAnalyzing(false);
+      }, 3000);
+    }
+  }, [analyzingStatus]);
+
+  const handleFinishSetupModelModal = async () => {
+    updateState({ target: selectedTarget, features: selectedFeatures })
+    setSetupModelModal(0);
+    setAnalyzing(true);
+
+    try { 
+      const results = await autoMLSession(datasetId, selectedTarget, selectedFeatures);
+      setAnalyzing(false);
+      console.log("Finished analyzing and training models!");
+      console.log("Results:", results);
+      updateState({sessionId: results.session_id, comparisonResults: results.comparison_results});
+      setAnalyzingStatus("completed");
+    } catch (error) {
+      console.error("Error during analyzing and training models:", error);
+      setAnalyzing(false);
+      setAnalyzingStatus("failed");
+    } 
   };
 
   const bestModelId = bestModel["index"];
@@ -101,6 +143,35 @@ export default function ModelingPanel() {
         <p className="text-xs text-gray-400 italic ml-6">
           The selected target and features will be used for model training and evaluation.
         </p>
+        <p className="text-xs text-gray-400 italic ml-6">
+          Do you want to change target and feature? 
+          <button
+            onClick={() => setSetupModelModal(1)}
+            className="text-green-600 underline hover:text-green-700 ml-1 hover:cursor-pointer"
+          >
+            Click here
+          </button>
+        </p>
+        {setupModelModal === 1 && (
+          <Modal title="Select Target and Features" onClose={() => 
+            {
+              setSetupModelModal(0)
+              setSelectedTarget(target)
+              setSelectedFeatures(features)
+            }
+          }>
+            <SetupModelModal
+              availableColumns={columns}
+              selectedTarget={selectedTarget}
+              setSelectedTarget={setSelectedTarget}
+              selectedFeatures={selectedFeatures}
+              setSelectedFeatures={setSelectedFeatures}
+              onCancel={() => setSetupModelModal(0)}
+              onFinish={handleFinishSetupModelModal}
+            />
+          </Modal>
+        )}
+        
       </div>
 
       {/* Tabs */}
@@ -165,7 +236,19 @@ export default function ModelingPanel() {
           />
         }
       </div>
-
+      {showToastAnalyzing && analyzingStatus === "completed" && (        
+        <Toast type="success" message="Model training completed successfully!" />
+      )}
+      {showToastAnalyzing && analyzingStatus === "failed" && (
+        <Toast type="error" message="An error occurred during model training." />
+      )}
+      {/* Analyzing Overlay */}
+        {analyzing && (
+          <div className="fixed inset-0 bg-white/70 bg-opacity-70 flex flex-col items-center justify-center z-50">
+            <Loader2 className="animate-spin text-green-600" size={48} />
+            <p className="mt-4 text-gray-700 font-semibold">Analyzing and training models...</p>
+          </div>
+        )}
     </div>
   );
 }

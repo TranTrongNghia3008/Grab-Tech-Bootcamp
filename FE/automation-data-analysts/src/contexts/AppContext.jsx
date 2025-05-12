@@ -13,8 +13,9 @@ export function AppProvider({ children }) {
     projectName: null,
     isClean: false,
     isModel: false,
-    selectedTarget: null,
-    selectedFeatures: [],
+    target: null,
+    features: [],
+    columns: null,
     comparisonResults: {},
     tuningResults: null,
     predictedResults: null

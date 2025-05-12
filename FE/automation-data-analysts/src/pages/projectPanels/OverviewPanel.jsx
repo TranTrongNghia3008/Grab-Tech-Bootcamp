@@ -33,11 +33,13 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
   const [showPreviewIssues, setShowPreviewIssues] = useState(false);
 
   const [cleanStatus, setCleanStatus] = useState(null);
-  const [showToast, setShowToast] = useState(false);
+  const [showToastClean, setShowToastClean] = useState(false);
+  const [showToastAnalyzing, setShowToastAnalyzing] = useState(false);
   const [data, setData] = useState([]);
   const [csvFileName, setCsvFileName] = useState('dataset');
   const [numRows, setNumRows] = useState(0);
   const [numColumns, setNumColumns] = useState(0);
+  const [columns, setColumns] = useState(0);
 
   const [selectedTarget, setSelectedTarget] = useState("");
   const [selectedFeatures, setSelectedFeatures] = useState([]);
@@ -66,8 +68,10 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
         setCsvFileName(filename || "dataset");
         setNumRows(total_row);
         setNumColumns(total_col);
+        const cols = transformedData.length > 0 ? Object.keys(transformedData[0]) : [];
+        setColumns(cols)
 
-        updateState({ projectName: project_name })
+        updateState({ projectName: project_name, columns: cols })
       } catch (error) {
         console.error("Failed to fetch preview dataset:", error);
       }
@@ -104,18 +108,22 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
 
   useEffect(() => {
     if (cleanStatus === "completed" || cleanStatus === "failed") {
-      setShowToast(true);
+      setShowToastClean(true);
       setTimeout(() => {
-        setShowToast(false);
+        setShowToastClean(false);
       }, 3000);
     }
+  }, [cleanStatus]);
+
+  useEffect(() => {
     if (analyzingStatus === "completed" || analyzingStatus === "failed") {
-      setShowToast(true);
+      setShowToastAnalyzing(true);
       setTimeout(() => {
-        setShowToast(false);
+        setShowToastAnalyzing(false);
       }, 3000);
     }
-  }, [cleanStatus, analyzingStatus]);
+  }, [analyzingStatus]);
+
 
   const handleCleanData = async () => {
     // setShowCleanModal(false);
@@ -152,7 +160,7 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
   };
 
   const handleFinishSetupModelModal = async () => {
-    updateState({ selectedTarget, selectedFeatures })
+    updateState({ target: selectedTarget, features: selectedFeatures })
     setStepModal(0);
     setAnalyzing(true);
 
@@ -173,7 +181,7 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
   };
 
   // const columns = data.length > 0 ? Object.keys(data[0]) : [];
-  const columns = ["Store ID","Employee Number" ,"Area" ,"Date" ,"Sales" ,"Marketing Spend" ,"Electronics Sales" ,"Home Sales" ,"Clothes Sales"]
+  // const columns = ["Store ID","Employee Number" ,"Area" ,"Date" ,"Sales" ,"Marketing Spend" ,"Electronics Sales" ,"Home Sales" ,"Clothes Sales"]
 
   const cleanOptionDescriptions = {
     remove_duplicates: "Remove duplicate records from the dataset.",
@@ -212,16 +220,16 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
         <DataTable data={data} />
 
         {/* Toast */}
-        {showToast && cleanStatus === "completed" && (
+        {showToastClean && cleanStatus === "completed" && (
           <Toast type="success" message="Data cleaning completed successfully!" />
         )}
-        {showToast && cleanStatus === "failed" && (
+        {showToastClean && cleanStatus === "failed" && (
           <Toast type="error" message="An error occurred during cleaning." />
         )}
-        {showToast && analyzingStatus === "completed" && (        
+        {showToastAnalyzing && analyzingStatus === "completed" && (        
           <Toast type="success" message="Model training completed successfully!" />
         )}
-        {showToast && analyzingStatus === "failed" && (
+        {showToastAnalyzing && analyzingStatus === "failed" && (
           <Toast type="error" message="An error occurred during model training." />
         )}
 
