@@ -79,8 +79,3 @@ jobs:
       #   with:
       #     source: './BE'
       #     target: 'your-server'
-<<<<<<< HEAD
-      #     # Add other necessary parameters like SSH keys, server credentials, etc.
-=======
-      #     # Add other necessary parameters like SSH keys, server credentials, etc.
->>>>>>> f6f754134f1f4275e2621ee18463810d1c7b142b
