@@ -111,52 +111,53 @@ export default function PredictionTab({ datasetId }) {
     <div className="space-y-8">
       <h2 className="text-xl font-bold">Predict New Data</h2>
 
-      <div className="flex flex-col sm:flex-row sm:items-end gap-4 w-full">
-        {/* Select model */}
-        <div className="sm:w-1/3 w-full">
-          <label htmlFor="model-select" className="block text-sm font-medium text-gray-700 mb-1">
-            Select a finalized model
-          </label>
-          <select
-            id="model-select"
-            className="block w-full border border-green-300 focus:ring-green-500 focus:border-green-500 rounded-md shadow-sm px-3 py-2 text-sm"
-            value={selectedModelId || ""}
-            onChange={(e) => setSelectedModelId(parseInt(e.target.value))}
-          >
-            {finalizedModels.map((model) => (
-              <option key={model.id} value={model.id}>
-                {model.model_name}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="w-full">
+      
 
         {/* Upload file */}
-        <div className="sm:w-2/3 w-full">
-          {!uploadedFile ? (
-            <UploadDropzone onFileAccepted={handleFileAccepted} />
-          ) : (
-            <div className="flex items-center justify-between px-4 py-3 bg-green-100 border border-green-200 rounded-md text-sm text-green-800">
-              <span>📄 File uploaded: {uploadedFile.name}</span>
-              <button
-                onClick={() => {
-                  setUploadedFile(null);
-                  setPredictedData([]);
-                  setPredictResults(null);
-                }}
-                className="text-xs text-red-500 hover:underline ml-4"
-              >
-                Remove
-              </button>
-            </div>
-          )}
-        </div>
+
+        {!uploadedFile ? (
+          <UploadDropzone onFileAccepted={handleFileAccepted} />
+        ) : (
+          <div className="flex items-center justify-between px-4 py-3 bg-green-100 border border-green-200 rounded-md text-sm text-green-800">
+            <span>📄 File uploaded: {uploadedFile.name}</span>
+            <button
+              onClick={() => {
+                setUploadedFile(null);
+                setPredictedData([]);
+                setPredictResults(null);
+              }}
+              className="text-xs text-red-500 hover:underline ml-4"
+            >
+              Remove
+            </button>
+          </div>
+        )}
+    
       </div>
 
-
-      {/* Predict Button */}
       {uploadedFile && (
-        <div className="text-right">
+        <div className="flex justify-end items-center gap-4 mt-4">
+          {/* Select model */}
+          <div className="flex items-center gap-2">
+            <label htmlFor="model-select" className="text-sm font-medium text-gray-700">
+              Select your model
+            </label>
+            <select
+              id="model-select"
+              className="border border-green-300 focus:ring-green-500 focus:border-green-500 rounded-md shadow-sm px-3 py-2 text-sm"
+              value={selectedModelId || ""}
+              onChange={(e) => setSelectedModelId(parseInt(e.target.value))}
+            >
+              {finalizedModels.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.model_name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Predict button */}
           <Button onClick={handlePredict} disabled={loading}>
             {loading ? (
               <div className="flex items-center gap-2">
@@ -170,6 +171,7 @@ export default function PredictionTab({ datasetId }) {
           </Button>
         </div>
       )}
+
 
       {/* Prediction Results */}
       {predictedData.length > 0 && (

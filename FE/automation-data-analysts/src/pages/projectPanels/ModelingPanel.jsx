@@ -14,7 +14,7 @@ import { autoMLSession } from "../../components/services/modelingServices";
 
 export default function ModelingPanel() {
   const { state, updateState } = useAppContext();
-  const { datasetId, sessionId, autoMLResults, target, features, columns} = state;
+  const { datasetId, sessionId, autoMLResults, columns} = state;
   const [activeTab, setActiveTab] = useState("Baseline");
   const [isFinalized, setIsFinalized] = useState(false);
   const [modelPerformanceAnalysis, setModelPerformanceAnalysis] = useState(null);
@@ -35,6 +35,8 @@ export default function ModelingPanel() {
   useEffect(() => {
     if (autoMLResults) 
       {
+        setSelectedTarget(autoMLResults.step1_results.target_column)
+        setSelectedFeatures(autoMLResults.step1_results.feature_columns)
         setComparisonResults(autoMLResults.step1_results.comparison_results)
         const formattedComparisonResults= autoMLResults.step1_results.comparison_results.data.map(row => {
           const obj = {};
@@ -59,10 +61,10 @@ export default function ModelingPanel() {
       }
   }, [])
 
-  useEffect(() => {
-    if (target) setSelectedTarget(target)
-    if (features) setSelectedFeatures(features)
-  }, [target, features])
+  // useEffect(() => {
+  //   if (target) setSelectedTarget(target)
+  //   if (features) setSelectedFeatures(features)
+  // }, [target, features])
 
   const handleFetchModelPerformanceAnalysis = async () => {
     setLoadingModelPerformanceAnalysis(true);
@@ -130,21 +132,23 @@ export default function ModelingPanel() {
           </div>
 
           {/* Features */}
-          <div className="space-y-1 text-gray-700">
+          <div className="space-y-1 text-gray-700 flex-1">
             <div className="flex items-center gap-2">
               <FaWrench className="text-green-600" />
               <h4 className="text-sm font-semibold">Feature Columns</h4>
             </div>
             {selectedFeatures.length > 0 ? (
-              <div className="flex flex-wrap gap-2 ml-6">
-                {selectedFeatures.map((feature) => (
-                  <span
-                    key={feature}
-                    className="inline-block bg-green-50 border border-green-300 text-green-700 px-3 py-1 rounded-full text-xs"
-                  >
-                    {feature}
-                  </span>
-                ))}
+              <div className="ml-6 overflow-x-auto" style={{ maxWidth: "calc(100vw - 300px)" }}>
+                <div className="flex gap-2 w-max">
+                  {selectedFeatures.map((feature) => (
+                    <span
+                      key={feature}
+                      className="inline-block bg-green-50 border border-green-300 text-green-700 px-3 py-1 rounded-full text-xs whitespace-nowrap"
+                    >
+                      {feature}
+                    </span>
+                  ))}
+                </div>
               </div>
             ) : (
               <p className="text-sm ml-6 text-gray-400">No features selected.</p>
@@ -156,7 +160,7 @@ export default function ModelingPanel() {
           The selected target and features will be used for model training and evaluation.
         </p>
         <p className="text-xs text-gray-400 italic ml-6">
-          Do you want to change target and feature? 
+          Do you want to change target and feature?
           <button
             onClick={() => setSetupModelModal(1)}
             className="text-green-600 underline hover:text-green-700 ml-1 hover:cursor-pointer"
@@ -165,13 +169,14 @@ export default function ModelingPanel() {
           </button>
         </p>
         {setupModelModal === 1 && (
-          <Modal title="Select Target and Features" onClose={() => 
-            {
-              setSetupModelModal(0)
-              setSelectedTarget(target)
-              setSelectedFeatures(features)
-            }
-          }>
+          <Modal
+            title="Select Target and Features"
+            onClose={() => {
+              setSetupModelModal(0);
+              setSelectedTarget(autoMLResults.step1_results.target_column);
+              setSelectedFeatures(autoMLResults.step1_results.feature_columns);
+            }}
+          >
             <SetupModelModal
               availableColumns={columns}
               selectedTarget={selectedTarget}
@@ -183,14 +188,14 @@ export default function ModelingPanel() {
             />
           </Modal>
         )}
-        
       </div>
+
 
       {/* Tabs */}
       <div>
         <div className="flex space-x-4 mb-6 border-b border-gray-300">
           {["Baseline", "Tuning", "Prediction"].map((tab) => {
-            const isDisabled = tab === "Prediction" && !isFinalized;
+            const isDisabled = tab === "Prediction" && (!isFinalized || !selectedTarget);
 
             const tooltipText = {
               Baseline: "View baseline models and evaluation metrics.",

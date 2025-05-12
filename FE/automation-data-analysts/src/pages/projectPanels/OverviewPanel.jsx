@@ -160,6 +160,9 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
           if (status === "completed" || status === "failed") {
             setCleanStatus(status);
             clearInterval(intervalId); // Dừng kiểm tra khi job kết thúc
+            if (status === "completed") {
+              updateState({ isClean: true })
+            }
           }
         } catch (error) {
           console.error("Failed to check cleaning status:", error);
