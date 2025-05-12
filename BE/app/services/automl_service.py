@@ -243,6 +243,8 @@ def run_step1_setup_and_compare(db: Session, params: schemas.AutoMLSessionStartS
     # Construct the final success response object
     response_data = {
         "session_id": current_session_id,
+        "target_column": params.target_column,
+        "feature_columns": params.feature_columns,
         "status": final_step1_status, # Return the step status
         "task_type": detected_task,
         "experiment_save_path": exp_path,

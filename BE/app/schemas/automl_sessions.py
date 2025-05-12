@@ -25,6 +25,8 @@ class AutoMLSessionStartStep1Request(BaseModel): # Rename for clarity
     
 class AutoMLSessionStep1Response(BaseModel): # The missing class
     session_id: int
+    target_column: str
+    feature_columns: Optional[List[str]] = None
     status: str # Should be "step1_completed" on success
     # You can embed the results directly or use the nested class:
     task_type: Optional[str]
