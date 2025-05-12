@@ -95,3 +95,24 @@ class SessionInfo(BaseModel):
 class SessionListResponse(BaseModel):
     dataset_id: int
     sessions: List[SessionInfo]
+    
+class DetailResponse(BaseModel):
+    detail: str
+    
+class ChatSessionUpdateName(BaseModel):
+    """Schema for updating the chat session name."""
+    chat_name: Optional[str] = Field(
+        default=None, # Allow setting name to None (or empty string, adjust validation if needed)
+        max_length=255,
+        description="The new name for the chat session. Null or empty string might be allowed depending on business logic."
+    )
+
+class ChatSessionResponse(BaseModel):
+    """Schema for returning chat session state details."""
+    id: int
+    dataset_id: int
+    session_uuid: str
+    chat_name: Optional[str] = None
+    auto_execute_enabled: bool
+    created_at: datetime
+    last_accessed_at: datetime
