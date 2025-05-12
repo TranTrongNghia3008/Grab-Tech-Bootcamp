@@ -44,3 +44,9 @@ export function predictModel(finalizedModelId, file) {
         body: formData,
     });
 }
+
+export function getAutoMLResults(datasetId) {
+    return apiClient(`/v1/datasets/${datasetId}/automl-session-results`, {
+        method: "GET"
+    })
+}

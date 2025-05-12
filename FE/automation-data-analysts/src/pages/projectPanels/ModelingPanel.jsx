@@ -14,8 +14,7 @@ import { autoMLSession } from "../../components/services/modelingServices";
 
 export default function ModelingPanel() {
   const { state, updateState } = useAppContext();
-  const { datasetId, sessionId, comparisonResults, target, features, columns} = state;
-  // const datasetId = 4; 
+  const { datasetId, sessionId, autoMLResults, target, features, columns} = state;
   const [activeTab, setActiveTab] = useState("Baseline");
   const [isFinalized, setIsFinalized] = useState(false);
   const [finalizedModelId, setFinalizedModelId] = useState(null);
@@ -27,29 +26,41 @@ export default function ModelingPanel() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzingStatus, setAnalyzingStatus] = useState(null);
   const [showToastAnalyzing, setShowToastAnalyzing] = useState(false);
+  const [comparisonResults, setComparisonResults] = useState(null)
+  const [bestModel, setBestModel] = useState(null)
 
   console.log("ModelingPanel - datasetId:", datasetId);
   console.log("ModelingPanel - sessionId:", sessionId);
-  console.log("ModelingPanel - comparisonResults:", comparisonResults);
+  console.log("ModelingPanel - autoMLResults:", autoMLResults);
+
+  useEffect(() => {
+    if (autoMLResults) 
+      {
+        setComparisonResults(autoMLResults.comparison_results)
+        const formattedComparisonResults= autoMLResults.comparison_results.data.map(row => {
+          const obj = {};
+          autoMLResults.comparison_results.columns.forEach((col, idx) => {
+            obj[col] = row[idx];
+          });
+          return obj;
+        });
+        setComparisonResults(formattedComparisonResults)
+
+        const best = formattedComparisonResults.reduce((best, current) => {
+          const score = current["RMSE"] - current["R2"]; // Giảm RMSE, tăng R2
+          const bestScore = best["RMSE"] - best["R2"];
+          return score < bestScore ? current : best;
+        });
+        setBestModel(best)
+
+        console.log("ModelingPanel - comparisonResults:", formattedComparisonResults);
+      }
+  }, [])
 
   useEffect(() => {
     if (target) setSelectedTarget(target)
     if (features) setSelectedFeatures(features)
   }, [target, features])
-
-  const formattedComparisonResults= comparisonResults.data.map(row => {
-    const obj = {};
-    comparisonResults.columns.forEach((col, idx) => {
-      obj[col] = row[idx];
-    });
-    return obj;
-  });
-
-  const bestModel = formattedComparisonResults.reduce((best, current) => {
-    const score = current["RMSE"] - current["R2"]; // Giảm RMSE, tăng R2
-    const bestScore = best["RMSE"] - best["R2"];
-    return score < bestScore ? current : best;
-  });
 
   const handleFetchModelPerformanceAnalysis = async () => {
     setLoadingModelPerformanceAnalysis(true);
@@ -92,7 +103,6 @@ export default function ModelingPanel() {
     } 
   };
 
-  const bestModelId = bestModel["index"];
   return (
     <div className="space-y-8">
       <h2 className="text-xl font-bold">Modeling</h2>
@@ -214,7 +224,7 @@ export default function ModelingPanel() {
         {/* Tab content */}
         {activeTab === "Baseline" && 
           <BaselineTab 
-            comparisonResults={formattedComparisonResults} 
+            comparisonResults={comparisonResults} 
             sessionId={sessionId} bestModel={bestModel}
             modelPerformanceAnalysis={modelPerformanceAnalysis}
             loadingModelPerformanceAnalysis={loadingModelPerformanceAnalysis}
@@ -224,8 +234,8 @@ export default function ModelingPanel() {
         {activeTab === "Tuning" && 
           <TuningTab 
             sessionId={sessionId} 
-            bestModelId={bestModelId} 
-            comparisonResults={formattedComparisonResults} 
+            bestModelId={bestModel.index} 
+            comparisonResults={comparisonResults} 
             setIsFinalized={setIsFinalized} 
             setFinalizedModelId={setFinalizedModelId}
           />

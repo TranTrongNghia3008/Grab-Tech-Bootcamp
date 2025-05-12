@@ -11,12 +11,12 @@ import Toast from "../../components/ui/Toast";
 import SetupModelModal from "./SetupModelModal";
 import { useAppContext } from "../../contexts/AppContext";
 import { getPreviewIssues, cleaningDataset, getCleaningStatus } from "../../components/services/cleaningServices";
-import { autoMLSession } from "../../components/services/modelingServices";
+import { autoMLSession, getAutoMLResults } from "../../components/services/modelingServices";
 import { getPreviewDataset } from "../../components/services/datasetService";
 
 export default function OverviewPanel({ setIsTargetFeatureSelected }) {
   const { state, updateState } = useAppContext();
-  const { datasetId, isClean } = state;
+  const { datasetId, isClean, isModel } = state;
   const [cleanOptions, setCleanOptions] = useState({
     "remove_duplicates": true,
     "handle_missing_values": true,
@@ -47,6 +47,20 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
   const [analyzingStatus, setAnalyzingStatus] = useState(null);
   const [stepModal, setStepModal] = useState(0); 
   const [note, setNote] = useState(<>Confirm that this is your dataset. Click <strong>Next</strong> to review and prepare it for training.</>)
+
+  useEffect(() => {
+    const fetchAutoMLResults = async () => {
+      try {
+        const results = await getAutoMLResults(datasetId)
+        updateState({sessionId: results.step1_results.session_id, autoMLResults: results.step1_results});
+      } catch (error) {
+        console.error("Failed to fetch AutoML Results:", error);
+      }
+    }
+    if (isModel) {
+      fetchAutoMLResults()
+    }
+  }, [])
 
   useEffect(() => {
     const fetchPreviewDataset = async () => {
@@ -169,7 +183,7 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
       setAnalyzing(false);
       console.log("Finished analyzing and training models!");
       console.log("Results:", results);
-      updateState({sessionId: results.session_id, comparisonResults: results.comparison_results});
+      updateState({sessionId: results.session_id, autoMLResults: results});
       setIsTargetFeatureSelected(true); 
       setAnalyzingStatus("completed");
       setNote(<>Now explore the <strong>Data Insight</strong>, <strong>Modeling</strong>, and <strong>Export</strong> tabs.</>)
