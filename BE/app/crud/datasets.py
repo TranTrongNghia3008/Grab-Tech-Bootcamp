@@ -169,6 +169,50 @@ class CRUDDataset(CRUDBase[Dataset, DatasetCreateSchema, DatasetUpdateSchema]):
             data_quality_score=round(data_quality_score, 2), # Or a more complex dict/object
             features=feature_profiles
         )
+        
+    def update_project_name(
+        self,
+        db: Session,
+        *,
+        dataset_id: int,
+        new_project_name: Optional[str]
+    ) -> Tuple[Optional[Dataset], Optional[str]]:
+        """
+        Updates the project_name of a specific dataset.
+
+        Checks for uniqueness if the new name is not None.
+
+        Returns:
+            Tuple[Optional[Dataset], Optional[str]]: A tuple containing:
+                - The updated Dataset object if successful and found.
+                - An error message string if validation fails (e.g., uniqueness), None otherwise.
+                  Returns (None, None) if the dataset_id itself was not found.
+        """
+        db_obj = self.get(db=db, id=dataset_id)
+        if not db_obj:
+            return None, None # Dataset not found
+
+        # Check for uniqueness constraint if new name is provided and different
+        if new_project_name is not None and new_project_name != db_obj.project_name:
+            existing = db.query(Dataset).filter(
+                Dataset.project_name == new_project_name,
+                Dataset.id != dataset_id # Exclude the current dataset from the check
+            ).first()
+            if existing:
+                error_msg = f"Project name '{new_project_name}' already exists for dataset ID {existing.id}."
+                return db_obj, error_msg # Return current object and error message
+
+        # Update the project name
+        db_obj.project_name = new_project_name
+        try:
+            db.add(db_obj)
+            db.commit()
+            db.refresh(db_obj)
+            return db_obj, None # Success
+        except Exception as e:
+            db.rollback()
+            error_msg = f"Database error during update: {e}"
+            return db_obj, error_msg
 
 # --- Instantiate the CRUD class ---
 crud_dataset = CRUDDataset(Dataset)
