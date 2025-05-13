@@ -5,12 +5,12 @@ import DataTable from "../../components/DataTable";
 import AnalyzeModel from "./AnalyzeModel";
 import CompareModels from "./CompareModels";
 
-export default function BaselineTab({ comparisonResults = [], sessionId = 1, bestModel, modelPerformanceAnalysis, loadingModelPerformanceAnalysis, handleFetchModelPerformanceAnalysis }) {
+export default function BaselineTab({ comparisonResults = null, sessionId = 1, bestModel, modelPerformanceAnalysis, loadingModelPerformanceAnalysis, handleFetchModelPerformanceAnalysis }) {
   const [showComparison, setShowComparison] = useState(false);
 
   return (
     <div className="space-y-8">
-      {comparisonResults.length > 0 && (
+      {comparisonResults && (
         <>
           <div className="bg-green-50 border border-green-200 px-4 py-3 rounded-md text-xl text-green-900 shadow-sm">
             <p>
@@ -25,7 +25,7 @@ export default function BaselineTab({ comparisonResults = [], sessionId = 1, bes
 
           </div>
 
-          {comparisonResults.length > 0 && (
+          {comparisonResults && (
             <>
               {showComparison && (
                 <Card className="space-y-4">

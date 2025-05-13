@@ -1,18 +1,20 @@
 import { useState, useEffect } from "react";
-import { FaMagic, FaDownload, FaChartLine } from "react-icons/fa"; // Import thêm FaChartLine
+import { FaMagic, FaDownload, FaChartLine } from "react-icons/fa"; 
 import { Button, Card } from "../../components/ui";
 import DataTable from "../../components/DataTable";
 import UploadDropzone from "../../components/UploadDropzone"; 
-import { predictModel } from "../../components/services/modelingServices";
+import { getListFinalizedModels, predictModel } from "../../components/services/modelingServices";
 import { useAppContext } from "../../contexts/AppContext";
 
-export default function PredictionTab({ finalizedModelId }) {
+export default function PredictionTab({ datasetId }) {
   const { state, updateState } = useAppContext();
   const { predictedResults } = state;
   const [uploadedFile, setUploadedFile] = useState(null);
   const [predictedData, setPredictedData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [predictResults, setPredictResults] = useState(null); 
+  const [finalizedModels, setFinalizedModels] = useState([]);
+  const [selectedModelId, setSelectedModelId] = useState(null);
 
   useEffect(() => {
       if (predictedResults) {
@@ -20,6 +22,20 @@ export default function PredictionTab({ finalizedModelId }) {
         processPredictResults(predictedResults)
       }
     }, [predictedResults]);
+
+  useEffect(() => {
+    async function fetchModels() {
+      try {
+        const models = await getListFinalizedModels(datasetId); // datasetId bạn truyền vào props
+        setFinalizedModels(models);
+        if (models.length > 0) setSelectedModelId(models[0].id);
+      } catch (err) {
+        console.error("Failed to load finalized models", err);
+      }
+    }
+    fetchModels();
+  }, [datasetId]);
+
 
   const processPredictResults = (predictResults) => {
     setPredictResults(predictResults); 
@@ -45,15 +61,17 @@ export default function PredictionTab({ finalizedModelId }) {
       alert("Please upload a CSV file first!");
       return;
     }
-  
+    if (!selectedModelId) {
+      alert("Please select a model first!");
+      return;
+    }
+
     setLoading(true);
-  
+
     try {
-      const predictResults = await predictModel(finalizedModelId, uploadedFile);
-      console.log("Predict results:", predictResults);
-      updateState({predictedResults: predictResults})
-      processPredictResults(predictResults)
-      setUploadedFile(false)
+      const predictResults = await predictModel(selectedModelId, uploadedFile);
+      updateState({ predictedResults: predictResults });
+      setUploadedFile(false);
     } catch (error) {
       console.error("Prediction failed:", error);
       alert("Prediction failed. Check console for details.");
@@ -61,6 +79,7 @@ export default function PredictionTab({ finalizedModelId }) {
       setLoading(false);
     }
   };
+
   
 
   const handleDownloadPredicted = () => {
@@ -92,23 +111,53 @@ export default function PredictionTab({ finalizedModelId }) {
     <div className="space-y-8">
       <h2 className="text-xl font-bold">Predict New Data</h2>
 
-      {!uploadedFile ? (
-        <UploadDropzone onFileAccepted={handleFileAccepted} />
-      ) : (
-        <div className="flex items-center justify-between px-4 py-3 bg-green-100 border border-green-200 rounded-md text-sm text-green-800">
-          <span>📄 File uploaded: {uploadedFile.name}</span>
-          <button
-            onClick={() => { setUploadedFile(null); setPredictedData([]); setPredictResults(null); }}
-            className="text-xs text-red-500 hover:underline ml-4"
-          >
-            Remove
-          </button>
-        </div>
-      )}
+      <div className="w-full">
+      
 
-      {/* Predict Button */}
+        {/* Upload file */}
+
+        {!uploadedFile ? (
+          <UploadDropzone onFileAccepted={handleFileAccepted} />
+        ) : (
+          <div className="flex items-center justify-between px-4 py-3 bg-green-100 border border-green-200 rounded-md text-sm text-green-800">
+            <span>📄 File uploaded: {uploadedFile.name}</span>
+            <button
+              onClick={() => {
+                setUploadedFile(null);
+                setPredictedData([]);
+                setPredictResults(null);
+              }}
+              className="text-xs text-red-500 hover:underline ml-4"
+            >
+              Remove
+            </button>
+          </div>
+        )}
+    
+      </div>
+
       {uploadedFile && (
-        <div className="text-right">
+        <div className="flex justify-end items-center gap-4 mt-4">
+          {/* Select model */}
+          <div className="flex items-center gap-2">
+            <label htmlFor="model-select" className="text-sm font-medium text-gray-700">
+              Select your model
+            </label>
+            <select
+              id="model-select"
+              className="border border-green-300 focus:ring-green-500 focus:border-green-500 rounded-md shadow-sm px-3 py-2 text-sm"
+              value={selectedModelId || ""}
+              onChange={(e) => setSelectedModelId(parseInt(e.target.value))}
+            >
+              {finalizedModels.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.model_name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Predict button */}
           <Button onClick={handlePredict} disabled={loading}>
             {loading ? (
               <div className="flex items-center gap-2">
@@ -122,6 +171,7 @@ export default function PredictionTab({ finalizedModelId }) {
           </Button>
         </div>
       )}
+
 
       {/* Prediction Results */}
       {predictedData.length > 0 && (
