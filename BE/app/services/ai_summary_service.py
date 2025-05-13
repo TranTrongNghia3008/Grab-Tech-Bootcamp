@@ -151,7 +151,8 @@ def get_tuned_model_with_image_prompt_text(tuning_results_string: str) -> str:
         * "Monitor performance: If you decide to use this model, keep an eye on how well it performs on new, real-world data."
         * "Iterate if needed: Based on its real-world performance and your business goals, you can always revisit and further refine the model or features."
 
-    Keep your language direct, simple, and focused on practical value. Ensure the entire output is a single HTML block.
+    Keep your language direct, simple, and focused on practical value. Answer as briefly as possible. Ensure the entire output is a single HTML block.
+    Return <body>Your Answer</body>
     """
     
 def get_baseline_model_with_image_prompt_text(metrics_string: str) -> str:
@@ -189,7 +190,8 @@ def get_baseline_model_with_image_prompt_text(metrics_string: str) -> str:
             *   "To improve upon this baseline for its [identified task], common next steps include exploring different algorithms suitable for this task, refining features (feature engineering), or addressing potential data issues (like imbalances for classification or outliers for regression)."
             *   "It's crucial to compare any more complex models against this baseline to quantify the benefits of increased complexity and effort."
 
-    Keep your language direct, simple, and focused on practical value. Ensure the entire output is a single HTML block.
+    Keep your language direct, simple, and focused on practical value. Answer as briefly as possible. Ensure the entire output is a single HTML block.
+    Return <body>Your Answer</body>
     """
     
 class AISummaryService:
@@ -283,7 +285,7 @@ class AISummaryService:
             
             metrics_data_string = json.dumps(data["metrics_data"], indent=2) # metrics_data is a dict
             text_prompt_content = get_baseline_model_with_image_prompt_text(metrics_data_string)
-            system_message = "You are an AI assistant skilled at interpreting baseline classification model metrics and feature importance plots for a non-technical audience, providing actionable insights. Format the output in HTML format."
+            system_message = "You are an AI assistant skilled at interpreting baseline model metrics and feature importance plots for a non-technical audience, providing actionable insights. Format the output in HTML format."
             final_model_name = primary_model_candidate or "gpt-4o" # Multimodal, so GPT-4o or similar is good
             current_max_tokens = max_tokens_multimodal_or_perf
 
