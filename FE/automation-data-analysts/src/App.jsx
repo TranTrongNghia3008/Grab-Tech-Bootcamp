@@ -7,6 +7,7 @@ import CreateProject from './pages/CreateProject';
 import DatasetsPage from './pages/Datasets';
 import Home from './pages/Home';
 import PredictionDriftTable from './pages/projectPanels/PredictionDrift';
+import ExtractTable from './pages/ExtractTable';
 
 function App() {
 
@@ -21,6 +22,7 @@ function App() {
         <Route path="/projects/create" element={<CreateProject />} />
         <Route path="/project/:id" element={<ProjectDetail />} />
         <Route path="/predict" element={<PredictionDriftTable/>}/>
+        <Route path="/extract-table" element={<ExtractTable/>}/>
         {/* thêm các route khác */}
       </Routes>
     </BrowserRouter>

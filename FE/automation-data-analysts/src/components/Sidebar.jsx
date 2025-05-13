@@ -1,12 +1,14 @@
 import { Link, useLocation } from "react-router-dom";
 import { FaProjectDiagram, FaTachometerAlt, FaDatabase, FaCog, FaUserCircle } from "react-icons/fa"; 
 import { LuArrowLeftToLine, LuArrowRightToLine } from "react-icons/lu";
+import { SiConvertio } from "react-icons/si";
 import { useState, useEffect } from "react";
 
 const navItems = [
   { name: "Projects", path: "/projects", icon: <FaProjectDiagram /> },
   { name: "Dashboard", path: "/dashboard", icon: <FaTachometerAlt /> },
   { name: "Datasets", path: "/datasets", icon: <FaDatabase /> },
+  { name: "Extract", path: "/extract-table", icon: <SiConvertio /> },
   { name: "Settings", path: "/settings", icon: <FaCog /> }
 ];
 
