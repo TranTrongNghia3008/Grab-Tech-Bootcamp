@@ -21,9 +21,18 @@ export function getAICorrelationMatrix(data) {
 }
 
 export function getModelPerformanceAnalysis(data) {
+    const columns = Object.keys(data[0]);
+
+    const dataList = data.map(item => columns.map(col => item[col]));
+
+    const payload = {
+        "columns": columns,
+        "data": dataList
+    };
+    console.log("getModelPerformanceAnalysis", payload)
     return apiClient("/v1/model-performance", {
         method: "POST",
-        body: data
+        body: payload
     }) 
 }
 
@@ -51,6 +60,7 @@ export function getTunedModelEvaluation( tunedResultsForEvaluation, imageFile = 
 export function getBaselineModelEvaluation( {metrics, featureImageUrl = null}) {
     const formData = new FormData();
     formData.append("metrics_data_json", JSON.stringify(metrics)); 
+    console.log(metrics)
 
     console.log(featureImageUrl)
 

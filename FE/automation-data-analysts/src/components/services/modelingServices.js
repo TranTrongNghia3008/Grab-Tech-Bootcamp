@@ -24,10 +24,10 @@ export function tuningSession(sessionId, modelType) {
     });
 }
 
-export function finalizeModel(sessionId, modelType) {
-    console.log("finalizeModel", sessionId, modelType);
+export function finalizeModel(sessionId, modelNameInput) {
+    console.log("finalizeModel", sessionId, modelNameInput);
     const payload = {
-        model_name_override: modelType,
+        model_name_override: modelNameInput,
     };
     return apiClient(`/v1/${sessionId}/step3-finalize`, {
         method: "POST",
@@ -43,4 +43,23 @@ export function predictModel(finalizedModelId, file) {
         method: "POST",
         body: formData,
     });
+}
+
+export function getAutoMLResults(datasetId) {
+    return apiClient(`/v1/datasets/${datasetId}/automl-session-results`, {
+        method: "GET"
+    })
+}
+
+export function getListFinalizedModels(datasetId) {
+    return apiClient(`/v1/datasets/${datasetId}/finalized-models`, {
+        method: "GET"
+    })
+}
+
+export function downLoadFinalizedModel(finalizedModelId) {
+    return apiClient(`/v1/finalized-models/${finalizedModelId}/download`, {
+        method: "GET",
+        raw: true, 
+    })
 }

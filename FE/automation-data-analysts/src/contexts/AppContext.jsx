@@ -16,7 +16,7 @@ export function AppProvider({ children }) {
     target: null,
     features: [],
     columns: null,
-    comparisonResults: {},
+    autoMLResults: null,
     tuningResults: null,
     predictedResults: null
 
