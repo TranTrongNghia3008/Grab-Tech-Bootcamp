@@ -38,32 +38,52 @@ class TunedModelBestParams(BaseModel):
 
 class TunedModelCVMetricsRow(BaseModel):
     fold_or_stat: Union[str, int] = Field(..., alias="Fold") # To match "Fold" or "Mean"/"Std"
-    mae: float = Field(..., alias="MAE")
-    mse: float = Field(..., alias="MSE")
-    rmse: float = Field(..., alias="RMSE")
-    r2: float = Field(..., alias="R2")
-    rmsle: float = Field(..., alias="RMSLE")
-    mape: float = Field(..., alias="MAPE")
-    
+    # Regression metrics (optional)
+    mae: Optional[float] = Field(None, alias="MAE")
+    mse: Optional[float] = Field(None, alias="MSE")
+    rmse: Optional[float] = Field(None, alias="RMSE")
+    r2: Optional[float] = Field(None, alias="R2")
+    rmsle: Optional[float] = Field(None, alias="RMSLE")
+    mape: Optional[float] = Field(None, alias="MAPE")
+
+    # Classification metrics (optional)
+    accuracy: Optional[float] = Field(None, alias="Accuracy")
+    auc: Optional[float] = Field(None, alias="AUC")
+    f1: Optional[float] = Field(None, alias="F1")
+    precision: Optional[float] = Field(None, alias="Precision")
+    recall: Optional[float] = Field(None, alias="Recall")
+
+    # Common metric
+    tt: Optional[float] = Field(None, alias="TT (Sec)")
+
     model_config = {
         "populate_by_name": True,
-        "extra": "allow"  # Allows extra fields like F1, AUC, etc.
+        "extra": "allow"  # This allows you to include any other metric like "LogLoss", "NDCG", etc.
     }
         
 class BaselineModelMetricsData(BaseModel):
-    mae: float = Field(..., alias="MAE")
-    mse: float = Field(..., alias="MSE")
-    rmse: float = Field(..., alias="RMSE")
-    r2: float = Field(..., alias="R2")
-    rmsle: float = Field(..., alias="RMSLE")
-    mape: float = Field(..., alias="MAPE")  
-    tt: float = Field(..., alias="TT (Sec)")
+    # Regression metrics (optional)
+    mae: Optional[float] = Field(None, alias="MAE")
+    mse: Optional[float] = Field(None, alias="MSE")
+    rmse: Optional[float] = Field(None, alias="RMSE")
+    r2: Optional[float] = Field(None, alias="R2")
+    rmsle: Optional[float] = Field(None, alias="RMSLE")
+    mape: Optional[float] = Field(None, alias="MAPE")
+
+    # Classification metrics (optional)
+    accuracy: Optional[float] = Field(None, alias="Accuracy")
+    auc: Optional[float] = Field(None, alias="AUC")
+    f1: Optional[float] = Field(None, alias="F1")
+    precision: Optional[float] = Field(None, alias="Precision")
+    recall: Optional[float] = Field(None, alias="Recall")
+
+    # Common metric
+    tt: Optional[float] = Field(None, alias="TT (Sec)")
 
     model_config = {
         "populate_by_name": True,
-        "extra": "allow"  # Allows extra fields like F1, AUC, etc.
+        "extra": "allow"  # This allows you to include any other metric like "LogLoss", "NDCG", etc.
     }
-
 
 class TunedModelCVMetricsTable(BaseModel):
     columns: List[str]
@@ -71,7 +91,7 @@ class TunedModelCVMetricsTable(BaseModel):
 
 class TunedModelResultsData(BaseModel):
     best_params: Dict[str, Any] # Using Dict[str, Any] for flexibility as in example
-    cv_metrics_table: TunedModelCVMetricsTable
+    cv_metrics_table: Dict[str, Any]
 
 class TunedModelInput(BaseModel):
     tuning_data: TunedModelResultsData
