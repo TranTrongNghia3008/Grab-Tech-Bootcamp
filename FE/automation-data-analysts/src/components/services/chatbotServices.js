@@ -45,3 +45,19 @@ export function getStarterQuestions(datasetId) {
         method: "GET",
     });
 }
+
+export function updateSessionName(datasetId, sessionUuid, newName) {
+    const payload = {
+        "chat_name": newName
+    }
+    return apiClient(`/datasets/${datasetId}/sessions/${sessionUuid}`, {
+        method: "PATCH",
+        body: payload
+    })
+}
+
+export function deleteSession(datasetId, sessionUuid) {
+    return apiClient(`/datasets/${datasetId}/sessions/${sessionUuid}`, {
+        method: "DELETE"
+    })
+}
