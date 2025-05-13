@@ -1644,7 +1644,8 @@ class AutoMLRunner:
                         if len(data_for_load) >= 500000:
                             random_state = self.config.get("session_id")
                             data_for_load = data_for_load.sample(frac=0.3, random_state=random_state)
-                            
+                        
+                        data_for_load = data_for_load.reset_index(drop=True)
                         if self.config.get('optimize_pandas_dtypes', True):
                             data_for_load = optimize_dtypes(data_for_load, self.config) # optimize dtypes
                         loaded_env = pycaret_module_for_load.load_experiment(experiment_path, data=data_for_load)
@@ -1659,7 +1660,8 @@ class AutoMLRunner:
                          if len(data_for_load) >= 500000:
                             random_state = self.config.get("session_id")
                             data_for_load = data_for_load.sample(frac=0.3, random_state=random_state)
-                            
+                        
+                         data_for_load = data_for_load.reset_index(drop=True)
                          if self.config.get('optimize_pandas_dtypes', True): 
                              data_for_load = optimize_dtypes(data_for_load, self.config)
                          loaded_env = pyclf.load_experiment(experiment_path, data=data_for_load)
@@ -1672,6 +1674,7 @@ class AutoMLRunner:
                              if len(data_for_load) >= 500000:
                                 random_state = self.config.get("session_id")
                                 data_for_load = data_for_load.sample(frac=0.3, random_state=random_state)
+                             data_for_load = data_for_load.reset_index(drop=True)
                              if self.config.get('optimize_pandas_dtypes', True): 
                                  data_for_load = optimize_dtypes(data_for_load, self.config)
                              loaded_env = pyreg.load_experiment(experiment_path, data=data_for_load)
@@ -1691,7 +1694,7 @@ class AutoMLRunner:
                      raise ValueError(f"Optimize metric '{metric_key_base}' not in config for task {self.task_type}.")
                 self.optimize_metric = self.config[metric_key_base]
                 mlflow.log_param("tune_optimize_metric", self.optimize_metric)
-
+                
 
                 # 2. Tune Specified Model
                 logger.info(f"Step 2.2: Tuning model '{model_id_to_tune}' optimizing '{self.optimize_metric}'...")

@@ -448,7 +448,6 @@ async def get_dataset_analysis_report(dataset_id: int, db: Session = Depends(get
     response_model=DetailResponse, # Response is a simple message
     status_code=status.HTTP_200_OK, # Or 204 if you prefer no content
     summary="Delete a dataset",
-    tags=["Datasets"],
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Dataset not found"},
         status.HTTP_500_INTERNAL_SERVER_ERROR: {"description": "Internal server error during deletion"},
@@ -483,7 +482,6 @@ def delete_dataset(
     response_model=DatasetFlatInfo, # Return updated dataset info
     status_code=status.HTTP_200_OK,
     summary="Update dataset project name",
-    tags=["Datasets"],
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Dataset not found"},
         status.HTTP_409_CONFLICT: {"description": "Project name already exists"},
@@ -533,7 +531,6 @@ def update_dataset_project_name(
 @router.get(
     "/datasets/{dataset_id}/profile/download",
     summary="Generate and download ydata-profiling report",
-    tags=["Datasets", "Profiling"],
     responses={
         status.HTTP_200_OK: {
             "content": {"text/html": {}},

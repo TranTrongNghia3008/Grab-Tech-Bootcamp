@@ -84,13 +84,13 @@ async def get_tuned_model_evaluation(
     try:
         try:
             tuning_data_dict = json.loads(tuning_data_json)
-            validated_tuning_data = TunedModelResultsData(**tuning_data_dict)
+            #validated_tuning_data = TunedModelResultsData(**tuning_data_dict)
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid JSON format for tuning_data_json.")
         except Exception as pydantic_error:
             raise HTTPException(status_code=422, detail=f"Invalid tuning_data structure: {pydantic_error}")
 
-        service_payload = {"tuning_data": validated_tuning_data.model_dump()}
+        service_payload = {"tuning_data": tuning_data_dict}
 
         if feature_importance_image_path:
             # Validate if the path exists (basic check)
@@ -146,13 +146,13 @@ async def get_baseline_model_evaluation(
         try:
             metrics_dict = json.loads(metrics_data_json)
             # Validate with Pydantic model
-            validated_metrics_data = BaselineModelMetricsData(**metrics_dict)
+            #validated_metrics_data = BaselineModelMetricsData(**metrics_dict)
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid JSON format for metrics_data_json.")
         except Exception as pydantic_error: # Catches Pydantic validation errors
             raise HTTPException(status_code=422, detail=f"Invalid metrics_data structure: {pydantic_error}")
 
-        service_payload = {"metrics_data": validated_metrics_data.model_dump(by_alias=True)}
+        service_payload = {"metrics_data": metrics_dict}
 
         if feature_importance_image_path:
             if not os.path.exists(feature_importance_image_path):
