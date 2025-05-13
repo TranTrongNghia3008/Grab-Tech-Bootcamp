@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, Extra
 from typing import List, Dict, Any, Union, Optional
 
 # --- Schemas for input data structures ---
@@ -45,8 +45,10 @@ class TunedModelCVMetricsRow(BaseModel):
     rmsle: float = Field(..., alias="RMSLE")
     mape: float = Field(..., alias="MAPE")
     
-    class Config:
-        populate_by_name = True
+    model_config = {
+        "populate_by_name": True,
+        "extra": "allow"  # Allows extra fields like F1, AUC, etc.
+    }
         
 class BaselineModelMetricsData(BaseModel):
     mae: float = Field(..., alias="MAE")
@@ -57,8 +59,10 @@ class BaselineModelMetricsData(BaseModel):
     mape: float = Field(..., alias="MAPE")  
     tt: float = Field(..., alias="TT (Sec)")
 
-    class Config:
-        populate_by_name = True # To allow "F1" as input key for f1 field
+    model_config = {
+        "populate_by_name": True,
+        "extra": "allow"  # Allows extra fields like F1, AUC, etc.
+    }
 
 
 class TunedModelCVMetricsTable(BaseModel):
