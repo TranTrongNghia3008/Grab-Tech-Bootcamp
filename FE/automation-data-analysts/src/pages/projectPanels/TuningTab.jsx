@@ -33,7 +33,6 @@ export default function TuningTab({ sessionId, bestModelId, comparisonResults = 
   useEffect(() => {
     if (tuningResults) {
       console.log("Tuning Results from state:", tuningResults);
-      setTunedResultsForEvaluation(tuningResults);
       processTuningResults(tuningResults)
     }
   }, [tuningResults]);
@@ -158,8 +157,7 @@ export default function TuningTab({ sessionId, bestModelId, comparisonResults = 
   const handleFetchTunedModelEvaluation = async () => {
     setLoadingTunedModelEvaluation(true);
     try {
-      console.log("Tuned Results for Evaluation: ", tunedResultsForEvaluation)
-      const res = await getTunedModelEvaluation({ metrics: tunedResultsForEvaluation.cv_metrics_table });
+      const res = await getTunedModelEvaluation(tunedResultsForEvaluation);
       
       setTunedModelEvaluation(parseAISummary(res.summary_html)); 
     } catch (err) {

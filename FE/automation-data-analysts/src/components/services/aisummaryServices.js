@@ -36,24 +36,19 @@ export function getModelPerformanceAnalysis(data) {
     }) 
 }
 
-export function getTunedModelEvaluation({ metrics, imageFile = null }) {
-    const { columns, data } = metrics;
-    const meanRow = data.find(row => row[0] === "Mean");
-    
-    if (!meanRow) return {};
-
-    const formattedMetrics = {};
-    for (let i = 1; i < columns.length; i++) {
-        const key = columns[i];
-        formattedMetrics[key] = meanRow[i];
-    }
-
+export function getTunedModelEvaluation( tunedResultsForEvaluation, imageFile = null, imageUrl = null ) {
     const formData = new FormData();
-    formData.append("tuning_data_json", JSON.stringify(formattedMetrics)); 
-    console.log(formattedMetrics)
+    const fixedTuningData = JSON.parse(JSON.stringify(tunedResultsForEvaluation).replace(/\\\\|\\/g, "/"));
+    console.log("fixedTuningData", fixedTuningData)
+
+    formData.append("tuning_data_json", JSON.stringify(fixedTuningData)); 
 
     if (imageFile) {
-        formData.append("feature_importance_image_path", imageFile);
+        formData.append("feature_importance_image", imageFile);
+    }
+
+    if (imageUrl) {
+        formData.append("image_url", imageUrl);
     }
 
     return apiClient("/v1/tuned-model-evaluation", {
