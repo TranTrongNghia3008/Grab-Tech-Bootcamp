@@ -188,101 +188,114 @@ const handleDeleteProject = async () => {
 
       {/* Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
-        {filteredProjects.map((project) => {
-          const { columns, data: rows } = project.data_preview
-          const columnColors = getRandomColor();
+  {filteredProjects.map((project) => {
+    const { columns, data: rows } = project.data_preview;
+    const columnColors = getRandomColor();
 
-          return (
-            <div
-              key={project.id}
-              className="relative group border border-gray-200 shadow-sm rounded-lg p-0 hover:shadow-lg transition-transform duration-300 hover:scale-101 cursor-pointer bg-white"
-              onClick={() => {
-                updateState({
-                  datasetId: project.id,
-                  projectName: project.project_name || "Untitled Project",
-                  isClean: project.is_clean,
-                  isModel: project.is_model
-                });
-                localStorage.setItem("currentProject", JSON.stringify({
-                  datasetId: project.id,
-                  projectName: project.project_name || "Untitled Project",
-                  isClean: project.is_clean,
-                  isModel: project.is_model
-                }));
-                navigate("/project/" + project.id);
-              }}
-            >
-              <div className="text-[11px] border border-gray-200 rounded overflow-hidden mb-2">
-                <div className="grid grid-cols-4">
-                  {columns.map((col) => (
-                    <div key={col} className={`p-1 text-center ${columnColors} border-r border-gray-200`}>
-                      {col}
-                    </div>
-                  ))}
-                </div>
-                {rows.map((row, rowIdx) => (
-                  <div key={rowIdx} className="grid grid-cols-4 even:bg-gray-50">
-                    {row.map((cell, cellIdx) => (
-                      <div key={cellIdx} className="p-1 text-center text-gray-700 border-r border-gray-200">{cell}</div>
-                    ))}
-                  </div>
-                ))}
-                <div className="absolute bottom-15 left-0 right-0 h-15 bg-gradient-to-t from-white to-transparent pointer-events-none" />
-              </div>
-
-              <div className="px-4">
-                {/* Project Name */}
-                <h2 className="font-semibold text-lg text-green-700 group-hover:text-green-800 line-clamp-1">
-                  {project.project_name || "Untitled Project"}
-                </h2>
-
-                {/* Time */}
-                <p className="text-xs text-gray-500 mt-1 mb-2">
-                  Created at:&nbsp;
-                  <span className="font-medium text-gray-600">
-                    {new Date(project.created_at).toLocaleString("en-GB", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                    })}
-                  </span>
-                </p>
-              </div>
-
-              {/* Hover Actions */}
-              <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedProject(project);
-                    setNewName(project.project_name);
-                    setErrorMessage("");
-                    setShowRenameModal(true);
-                  }}
-                  className="text-gray-500 hover:text-yellow-600 bg-white rounded-full p-1 shadow-sm hover:shadow-md transition"
-                  title="Rename"
-                >
-                  <Pencil size={16} />
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedProject(project);
-                    setShowDeleteModal(true);
-                  }}
-                  className="text-gray-400 hover:text-red-600 bg-white rounded-full p-1 shadow-sm hover:shadow-md transition"
-                  title="Delete"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
+    return (
+      <div
+        key={project.id}
+        className="relative group border border-gray-200 shadow-sm rounded-lg p-0 hover:shadow-lg transition-transform duration-300 hover:scale-101 cursor-pointer bg-white"
+        onClick={() => {
+          updateState({
+            datasetId: project.id,
+            projectName: project.project_name || "Untitled Project",
+            isClean: project.is_clean,
+            isModel: project.is_model,
+          });
+          localStorage.setItem(
+            "currentProject",
+            JSON.stringify({
+              datasetId: project.id,
+              projectName: project.project_name || "Untitled Project",
+              isClean: project.is_clean,
+              isModel: project.is_model,
+            })
           );
-        })}
+          navigate("/project/" + project.id);
+        }}
+      >
+        <div className="text-[11px] border border-gray-200 rounded overflow-hidden mb-2">
+          <div className="grid grid-cols-4">
+            {columns.map((col) => (
+              <div
+                key={col}
+                className={`p-1 text-center ${columnColors} border-r border-gray-200 truncate whitespace-nowrap overflow-hidden`}
+                title={col}
+              >
+                {col}
+              </div>
+            ))}
+          </div>
+          {rows.map((row, rowIdx) => (
+            <div key={rowIdx} className="grid grid-cols-4 even:bg-gray-50">
+              {row.map((cell, cellIdx) => (
+                <div
+                  key={cellIdx}
+                  className="p-1 text-center text-gray-700 border-r border-gray-200 truncate whitespace-nowrap overflow-hidden"
+                  title={cell}
+                >
+                  {cell}
+                </div>
+              ))}
+            </div>
+          ))}
+          <div className="absolute bottom-15 left-0 right-0 h-15 bg-gradient-to-t from-white to-transparent pointer-events-none" />
+        </div>
 
+        <div className="px-4">
+          {/* Project Name */}
+          <h2 className="font-semibold text-lg text-green-700 group-hover:text-green-800 line-clamp-1">
+            {project.project_name || "Untitled Project"}
+          </h2>
+
+          {/* Time */}
+          <p className="text-xs text-gray-500 mt-1 mb-2">
+            Created at:&nbsp;
+            <span className="font-medium text-gray-600">
+              {new Date(project.created_at).toLocaleString("en-GB", {
+                hour: "2-digit",
+                minute: "2-digit",
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+              })}
+            </span>
+          </p>
+        </div>
+
+        {/* Hover Actions */}
+        <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedProject(project);
+              setNewName(project.project_name);
+              setErrorMessage("");
+              setShowRenameModal(true);
+            }}
+            className="text-gray-500 hover:text-yellow-600 bg-white rounded-full p-1 shadow-sm hover:shadow-md transition"
+            title="Rename"
+          >
+            <Pencil size={16} />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedProject(project);
+              setShowDeleteModal(true);
+            }}
+            className="text-gray-400 hover:text-red-600 bg-white rounded-full p-1 shadow-sm hover:shadow-md transition"
+            title="Delete"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
       </div>
+    );
+  })}
+</div>
+
 
 
       {/* Rename Modal */}

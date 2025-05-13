@@ -237,7 +237,10 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
                 <FaTableCells className="text-green-600 text-3xl" />
                 <div className="text-sm">
                   <div className="font-bold text-gray-800">{csvFileName}</div>
-                  <div className="text-gray-600">{numRows} rows, {numColumns} columns</div>
+                  <div className="text-gray-600">
+                    {Intl.NumberFormat("en", { notation: "compact" }).format(numRows)} rows,&nbsp;
+                    {Intl.NumberFormat("en", { notation: "compact" }).format(numColumns)} columns
+                  </div>
                 </div>
               </div>
             </div>

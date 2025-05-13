@@ -11,3 +11,10 @@ export function getCorrelation(datasetId) {
         method: "GET",
     });
 }
+
+
+export function getDataProfile(datasetId) {
+    return apiClient(`/v1/datasets/${datasetId}/profile/download`, {
+        method: "GET",
+    });
+}

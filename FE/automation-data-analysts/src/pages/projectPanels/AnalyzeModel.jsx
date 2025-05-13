@@ -133,7 +133,7 @@ export default function AnalyzeModel({ availableModels = [], sessionId = 1, imgP
         <>
           <div className="flex justify-between bg-green-50 border border-green-200 px-4 py-3 rounded-md text-sm text-green-900 shadow-sm">
           <p className="me-5 my-auto">
-          <strong>Curious about how your tuned model truly performs - and what’s driving its decisions?</strong> <br/>
+          <strong>Curious about how {availableModels.find((m) => m.index === selectedModelId)?.Model} model truly performs - and what’s driving its decisions?</strong> <br/>
           We've analyzed the model’s consistency, key contributing features, and provided actionable insights to help you confidently move toward deployment or further refinement.          </p>
           <Button
             onClick={handleFetchBaselineModelEvaluation}
