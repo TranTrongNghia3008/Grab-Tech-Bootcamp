@@ -64,14 +64,13 @@ class BaselineModelMetricsData(BaseModel):
         "extra": "allow"  # Allows extra fields like F1, AUC, etc.
     }
 
-
 class TunedModelCVMetricsTable(BaseModel):
     columns: List[str]
     data: List[List[Union[str, float, int]]]
 
 class TunedModelResultsData(BaseModel):
     best_params: Dict[str, Any] # Using Dict[str, Any] for flexibility as in example
-    cv_metrics_table: TunedModelCVMetricsTable
+    cv_metrics_table: Dict[str, Any]
 
 class TunedModelInput(BaseModel):
     tuning_data: TunedModelResultsData

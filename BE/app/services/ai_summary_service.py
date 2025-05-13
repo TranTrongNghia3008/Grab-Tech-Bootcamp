@@ -283,7 +283,7 @@ class AISummaryService:
             
             metrics_data_string = json.dumps(data["metrics_data"], indent=2) # metrics_data is a dict
             text_prompt_content = get_baseline_model_with_image_prompt_text(metrics_data_string)
-            system_message = "You are an AI assistant skilled at interpreting baseline classification model metrics and feature importance plots for a non-technical audience, providing actionable insights. Format the output in HTML format."
+            system_message = "You are an AI assistant skilled at interpreting baseline model metrics and feature importance plots for a non-technical audience, providing actionable insights. Format the output in HTML format."
             final_model_name = primary_model_candidate or "gpt-4o" # Multimodal, so GPT-4o or similar is good
             current_max_tokens = max_tokens_multimodal_or_perf
 
