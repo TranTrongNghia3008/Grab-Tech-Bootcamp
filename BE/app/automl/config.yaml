@@ -32,8 +32,8 @@ n_jobs: -1                        # Number of CPU cores to use (-1 uses all avai
 numeric_imputation: 'mean'
 categorical_imputation: 'mode'
 fold_strategy: 'stratifiedkfold'    # CV strategy ('kfold', 'stratifiedkfold', 'groupkfold', time series splits, etc.)
-baseline_folds: 5                 # Number of folds for CV in compare_models and baseline analysis
-tuning_folds: 5                   # Number of folds for CV in tune_model
+baseline_folds: 3                 # Number of folds for CV in compare_models and baseline analysis
+tuning_folds: 3                   # Number of folds for CV in tune_model
 
 # Advanced setup params (passed directly to pycaret.setup function)
 # Add any other valid pycaret.setup arguments here.
@@ -65,9 +65,9 @@ optimize_metric_regression: 'RMSE' # Lower is better for RMSE
 
 # Hyperparameter Tuning Settings
 model_to_tune_in_step2: null       # Optional: Specify model ID (e.g., 'lightgbm'). If null, Step 2 tunes the best model from compare_models.
-tuning_search_library: 'scikit-learn' # Library for hyperparameter search ('scikit-learn', 'optuna', 'scikit-optimize', 'tune-sklearn')
-tuning_search_algorithm: 'random'  # Search algorithm ('random', 'grid', 'bayesian' (depends on library))
-tuning_iterations: 25            # Number of iterations for random/bayesian search
+tuning_search_library: 'tune-sklearn' # Library for hyperparameter search ('scikit-learn', 'optuna', 'scikit-optimize', 'tune-sklearn')
+tuning_search_algorithm: 'hyperopt'  # Search algorithm ('random', 'grid', 'bayesian' (depends on library))
+tuning_iterations: 15            # Number of iterations for random/bayesian search
 # custom_grid: {}                  # Optional: Define a custom hyperparameter grid per model
 #   lightgbm:
 #     learning_rate: [0.01, 0.05, 0.1]

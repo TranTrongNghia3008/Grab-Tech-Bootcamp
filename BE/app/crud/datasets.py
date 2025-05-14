@@ -7,8 +7,11 @@ import pandas as pd
 from app.db.models.datasets import Dataset
 from app.crud.base import CRUDBase
 from app.schemas.dataset import DatasetInfo, DatasetAnalysisReport, FeatureProfile
-from app.utils.file_storage import get_file_path, load_csv_as_dataframe
+from app.utils.file_storage import get_file_path, load_csv_as_dataframe, load_csv_as_dask_dataframe, save_dask_dataframe_as_csv
 from ydata_profiling import ProfileReport
+import dask.dataframe as dd
+import asyncio
+import dask
 
 
 def map_dtype_to_simplified_type(dtype_obj, series: pd.Series) -> str:
@@ -70,104 +73,111 @@ class CRUDDataset(CRUDBase[Dataset, DatasetCreateSchema, DatasetUpdateSchema]):
 
         return query.all() # Fetch all matching records
     
-    def get_dataset_analysis(self, db: Session, dataset_id: int) -> DatasetAnalysisReport:
-        """
-        Analyzes a dataset and returns a comprehensive report.
-        """
-        db_dataset = self.get(db=db, id=dataset_id) # Assuming self.get fetches a Dataset instance
-        if not db_dataset:
-            return None # Or raise an exception to be caught by the endpoint
+    async def get_dataset_analysis_dask(self, db: Session, dataset_id: int) -> Optional[DatasetAnalysisReport]:
+        dataset_model = await asyncio.to_thread(db.query(Dataset).filter(Dataset.id == dataset_id).first)
+        if not dataset_model:
+            return None
+        if not dataset_model.file_path:  # Or however you store the original path
+            raise ValueError("Dataset has no file path")
 
-        if not db_dataset.file_path:
-            # Handle case where file_path might not be set (e.g., during creation error)
-            # For this analysis, we need the file path.
-            raise ValueError(f"Dataset ID {dataset_id} does not have a valid file_path.")
+        # Determine which file to load (cleaned or original)
+        # Ensure this logic correctly points to an existing file
+        file_to_analyze = get_file_path(f'dataset_{dataset_id}_cleaned.csv') # Your logic
 
-        # Load dataframe - assuming cleaned data is preferred if available
-        # Modify this logic if you want to analyze the original or a specific version
-        file_to_analyze = db_dataset.file_path # Default to the main file_path
-        
-        # Construct the path to the cleaned file if it's a convention
-        # For example, if cleaned file is always dataset_{id}_cleaned.csv
-        cleaned_filename_candidate = f"dataset_{db_dataset.id}_cleaned.csv"
-        # This is a bit of a guess; adapt to how you store cleaned file paths
-        # Or, if you have a specific column for cleaned_file_path in Dataset, use that.
         try:
-            # Try loading the cleaned file first if it's part of your workflow
-            # This assumes get_file_path can check existence or load_csv_as_dataframe handles FileNotFoundError
-            potential_cleaned_path = get_file_path(cleaned_filename_candidate)
-            df = load_csv_as_dataframe(potential_cleaned_path)
-            actual_file_path_used = potential_cleaned_path
-            print(f"Analyzing cleaned dataset: {actual_file_path_used}")
+            # OPTIMIZATION: Pass dtypes to read_csv if known!
+            # e.g., dtypes = {'col1': 'int', 'col2': 'str'}
+            # ddf = await asyncio.to_thread(load_csv_as_dask_dataframe, file_to_analyze, dtypes=your_dtypes_dict)
+            ddf = await asyncio.to_thread(load_csv_as_dask_dataframe, file_to_analyze)
         except FileNotFoundError:
-            print(f"Cleaned dataset for ID {dataset_id} not found, analyzing original: {db_dataset.file_path}")
-            df = load_csv_as_dataframe(db_dataset.file_path) # Fallback to original
-            actual_file_path_used = db_dataset.file_path
-        except Exception as e:
-            raise RuntimeError(f"Error loading dataset {dataset_id} from {db_dataset.file_path}: {e}")
+            raise FileNotFoundError(f"Dataset file for analysis not found at: {file_to_analyze}")
+        except RuntimeError as e:
+            raise RuntimeError(f"Error loading dataset for analysis: {e}")
+        except Exception as e: # Catch broader exceptions during load
+            raise RuntimeError(f"Unexpected error loading dataset: {e}")
 
 
-        if df.empty:
-            # Handle empty dataframe case gracefully
+        # Check if ddf is essentially empty (metadata checks, cheap)
+        if ddf.npartitions == 0 or len(ddf.columns) == 0:
             return DatasetAnalysisReport(
-                dataset_id=db_dataset.id,
-                project_name=db_dataset.project_name,
-                file_path=actual_file_path_used,
-                total_records=0,
-                total_features=0,
-                overall_missing_percentage=0.0,
-                data_quality_score=0.0, # Or some other representation for empty
-                features=[]
+                total_records=0, total_features=len(ddf.columns), overall_missing_percentage=0,
+                data_quality_score=0, features=[]
             )
 
-        total_records = len(df)
-        total_features = len(df.columns)
+        # --- OPTIMIZATION: Define all Dask operations before computing ---
+        # 1. Total records (as a delayed object, not computed yet)
+        total_records_delayed = ddf.shape[0] # This is a Dask scalar, will compute to an int
 
-        # Overall missing percentage
-        total_cells = df.size
-        total_missing_cells = df.isnull().sum().sum()
-        overall_missing_percentage = (total_missing_cells / total_cells) * 100 if total_cells > 0 else 0.0
+        # 2. Missing counts per column (as a delayed Dask Series)
+        missing_counts_delayed = ddf.isnull().sum() # This is a Dask Series
 
-        # Data Quality Score (simple definition for now)
-        # 100 - overall_missing_percentage. Can be made more complex.
-        # Lower missing values = higher score.
-        data_quality_score = max(0.0, 100.0 - overall_missing_percentage)
+        # 3. Unique counts per column (as a dictionary of delayed Dask Scalars)
+        # Note: dask.compute can take a dictionary of tasks and will return a dictionary of results
+        unique_counts_delayed = {col: ddf[col].nunique_approx() for col in ddf.columns}
 
-        feature_profiles: List[FeatureProfile] = []
-        for col_name in df.columns:
-            series = df[col_name]
-            missing_count = series.isnull().sum()
-            missing_percentage = (missing_count / total_records) * 100 if total_records > 0 else 0.0
+        # --- Execute all Dask computations in parallel with one call ---
+        # dask.compute can take multiple arguments and will return a tuple of results
+        # in the same order. If a dict is passed, a dict of results is returned.
+        computed_values = await asyncio.to_thread(
+            dask.compute,
+            total_records_delayed,
+            missing_counts_delayed,
+            unique_counts_delayed
+            # You can add more delayed objects here if needed
+        )
 
-            # Unique percentage (count unique non-null values / total records)
-            # nunique() counts distinct observations over requested axis (excluding NA by default)
-            # series.count() gives non-NA count
-            unique_count = series.nunique()
-            unique_percentage = (unique_count / total_records) * 100 if total_records > 0 else 0.0
-            # Alternative for unique_percentage: (series.nunique() / series.count()) * 100 if series.count() > 0 else 0.0
-            # This would be "percentage of unique values among non-missing values".
-            # The current one is "percentage of unique values across all records".
+        # Unpack the results
+        total_records = computed_values[0]
+        missing_counts_series = computed_values[1] # This is now a Pandas Series
+        unique_counts_map = computed_values[2]     # This is now a dict of {col_name: unique_count}
 
-            dtype_str = map_dtype_to_simplified_type(series.dtype, series)
+        total_features = len(ddf.columns)
 
-            feature_profiles.append(
+        # Handle case where dataset loaded but has zero records
+        if total_records == 0:
+            return DatasetAnalysisReport(
+                total_records=0, total_features=total_features, overall_missing_percentage=0,
+                data_quality_score=0, # Or some other appropriate score
+                features=[
+                    FeatureProfile(feature_name=str(col), dtype=str(ddf[col].dtype), missing_percentage=0, unique_percentage=0)
+                    for col in ddf.columns
+                ]
+            )
+
+        # Now perform calculations on the computed (Pandas/Python native) results
+        total_missing = missing_counts_series.sum() # Operates on Pandas Series, fast
+        overall_missing_percentage = (total_missing / (total_records * total_features)) * 100 if total_records > 0 and total_features > 0 else 0
+
+        features_analysis: List[FeatureProfile] = []
+        for col in ddf.columns:
+            missing_val_for_col = missing_counts_series[col]
+            missing_pct = (missing_val_for_col / total_records) * 100 if total_records > 0 else 0
+
+            unique_count_for_col = unique_counts_map[col]
+            unique_pct = (unique_count_for_col / total_records) * 100 if total_records > 0 else 0
+
+            features_analysis.append(
                 FeatureProfile(
-                    feature_name=str(col_name), # Ensure column name is string
-                    dtype=dtype_str,
-                    missing_percentage=round(missing_percentage, 2),
-                    unique_percentage=round(unique_percentage, 2)
+                    feature_name=str(col),
+                    dtype=str(ddf[col].dtype), # ddf[col].dtype is metadata, cheap
+                    missing_percentage=round(missing_pct, 2),
+                    unique_percentage=round(unique_pct, 2)
                 )
             )
 
+        data_quality_score = round(100 - overall_missing_percentage, 2)
+        actual_file_path_used_for_report = dataset_model.file_path
+        project_name_to_report = dataset_model.project_name if dataset_model.project_name is not None else "N/A"
+        
         return DatasetAnalysisReport(
-            dataset_id=db_dataset.id,
-            project_name=db_dataset.project_name,
-            file_path=actual_file_path_used, # The actual file analyzed
+            dataset_id=dataset_model.id,
+            project_name=project_name_to_report,
+            file_path=actual_file_path_used_for_report,
             total_records=total_records,
             total_features=total_features,
             overall_missing_percentage=round(overall_missing_percentage, 2),
-            data_quality_score=round(data_quality_score, 2), # Or a more complex dict/object
-            features=feature_profiles
+            data_quality_score=data_quality_score,
+            features=features_analysis
         )
 
 # --- Instantiate the CRUD class ---
