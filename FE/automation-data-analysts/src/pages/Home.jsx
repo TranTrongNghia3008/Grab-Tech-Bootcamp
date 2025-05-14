@@ -72,9 +72,9 @@ export default function Home() {
                 <h2 className="text-3xl font-bold mb-10 text-[#00843D]">What You Can Do</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 text-sm text-gray-800">
                     <Feature icon={<Sparkles size={32} />} title="Data Cleaning" desc="Detect and fix missing values, outliers, and duplicates easily." />
-                    <Feature icon={<BarChart2 size={32} />} title="EDA & Visuals" desc="Generate summary stats and beautiful charts with one click." />
-                    <Feature icon={<Settings2 size={32} />} title="Model Training" desc="Train baseline or custom ML models with intuitive UI." />
-                    <Feature icon={<Bot size={32} />} title="AI Chatbot" desc="Ask questions in natural language and get data-driven answers." />
+                    <Feature icon={<BarChart2 size={32} />} title="Data Insight" desc="Generate summary stats and beautiful charts with one click." />
+                    <Feature icon={<Settings2 size={32} />} title="Modeling" desc="Train baseline or custom ML models with intuitive UI." />
+                    <Feature icon={<Bot size={32} />} title="Virtual Assistant" desc="Ask questions in natural language and get data-driven answers." />
                 </div>
                 </div>
             </section>
