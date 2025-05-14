@@ -19,6 +19,7 @@ import inspect # Needed for _log_plot_artifact
 import matplotlib.pyplot as plt # Needed for _log_plot_artifact workaround
 from io import StringIO
 import json
+import ray
 
 
 try:
@@ -111,6 +112,9 @@ def load_config(config_path: str = DEFAULT_CONFIG_PATH) -> Dict[str, Any]:
         config.setdefault('setup_params_extra', {}) # To pass arbitrary params to setup
         config.setdefault('tuning_search_library', 'scikit-learn') # Default tuning lib
         config.setdefault('tuning_search_algorithm', 'random') # Default tuning algo
+        
+        config.setdefault('ray_num_cpus', None) # For Ray initialization
+        config.setdefault('drift_check_sample_size', 50000) # For sampling in _check_data_drift
 
         # --- Validate essential keys needed by the runner ---
         required_keys_for_runner = [
@@ -298,6 +302,24 @@ class AutoMLRunner:
         self.training_data_profile_path: Optional[str] = None # Path to data profile report
 
         self._setup_mlflow() # Setup MLflow tracking details
+        
+        if not ray.is_initialized():
+            try:
+                # num_cpus can be specified if you want to limit Ray's core usage.
+                # If None, it usually defaults to all available cores.
+                ray_init_params = {
+                    "num_cpus": self.config.get("ray_num_cpus"), # Get from config
+                    "logging_level": logging.WARNING, # Reduce Ray's verbosity
+                    "ignore_reinit_error": True # Helpful if script is run multiple times
+                }
+                # Filter out None values for ray.init parameters
+                ray_init_params = {k: v for k, v in ray_init_params.items() if v is not None}
+
+                ray.init(**ray_init_params)
+                logger.info(f"Ray initialized successfully. Dashboard URL: {ray.dashboard_url()}")
+                # Store dashboard URL if needed, e.g., self.ray_dashboard_url = ray.dashboard_url()
+            except Exception as e:
+                logger.error(f"Failed to initialize Ray: {e}", exc_info=True)
 
     # ------------------- Internal Helper Methods -------------------
 
