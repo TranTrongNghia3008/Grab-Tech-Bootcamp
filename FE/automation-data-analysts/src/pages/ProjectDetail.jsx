@@ -6,11 +6,11 @@ import { MdOutlineCleaningServices } from "react-icons/md";
 import { FaQuestionCircle } from "react-icons/fa";
 import { useEffect, useState } from "react";
 
-import OverviewPanel from "./projectPanels/OverviewPanel";
-import DataInsightPanel from "./projectPanels/DataInsightPanel";
-import ChatbotPanel from "./projectPanels/ChatbotPanel";
-import ModelingPanel from "./projectPanels/ModelingPanel";
-import ExportPanel from "./projectPanels/ExportPanel";
+import OverviewPanel from "./projectPanels/overview/OverviewPanel";
+import DataInsightPanel from "./projectPanels/data-insight/DataInsightPanel";
+import ChatbotPanel from "./projectPanels/chatbot/ChatbotPanel";
+import ModelingPanel from "./projectPanels/modeling/ModelingPanel";
+import ExportPanel from "./projectPanels/export/ExportPanel";
 import { useAppContext } from "../contexts/AppContext";
 import HelpInfoModal from "../components/HelpInfoModal";
 

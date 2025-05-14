@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { LuGitCompare } from "react-icons/lu"; 
-import { Card } from "../../components/ui";
-import DataTable from "../../components/DataTable";
+import { Card } from "../../../components/ui";
+import DataTable from "../../../components/DataTable";
 
 export default function CompareModels({ models = [] }) {
   const [selectedModels, setSelectedModels] = useState([]);

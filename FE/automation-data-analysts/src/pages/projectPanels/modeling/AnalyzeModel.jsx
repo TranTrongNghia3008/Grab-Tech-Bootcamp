@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { TbAnalyzeFilled } from "react-icons/tb";
 import { Loader2 } from "lucide-react";
-import { Button, Card } from "../../components/ui";
-import { getBaselineModelEvaluation } from "../../components/services/aisummaryServices";
-import { parseAISummary } from "../../utils/parseHtml";
+import { Button, Card } from "../../../components/ui";
+import { getBaselineModelEvaluation } from "../../../components/services/aisummaryServices";
+import { parseAISummary } from "../../../utils/parseHtml";
 
 export default function AnalyzeModel({ availableModels = [], sessionId = 1, imgPath = "" }) {
   console.log("Available models:", availableModels);

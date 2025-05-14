@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Send, Plus, Menu } from "lucide-react";
 import { BsLightbulb } from "react-icons/bs";
-import { useAppContext } from "../../contexts/AppContext";
-import { deleteSession, getAllSessions, getKStateLatest, getSessionState, getStarterQuestions, interactChatbot, startConversation, updateSessionName } from "../../components/services/chatbotServices";
-import { formatHistoryFromLogs } from "../../utils/formatHistoryFromLogs";
-import { Button, Modal, Toast } from "../../components/ui";
+import { useAppContext } from "../../../contexts/AppContext";
+import { deleteSession, getAllSessions, getKStateLatest, getSessionState, getStarterQuestions, interactChatbot, startConversation, updateSessionName } from "../../../components/services/chatbotServices";
+import { formatHistoryFromLogs } from "../../../utils/formatHistoryFromLogs";
+import { Button, Modal, Toast } from "../../../components/ui";
 
 export default function ChatbotPanel() {
     const { state } = useAppContext(); 

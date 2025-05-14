@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { FaBullseye, FaWrench, FaRobot, FaCogs } from "react-icons/fa";
-import { Button, Card } from "../../components/ui";
+import { Button, Card } from "../ui";
 
 export default function SelectTargetFeaturesModel({
   availableColumns,

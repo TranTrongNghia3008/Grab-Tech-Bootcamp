@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FaBalanceScale } from "react-icons/fa";
-import { Button, Card } from "../../components/ui";
-import DataTable from "../../components/DataTable";
+import { Button, Card } from "../../../components/ui";
+import DataTable from "../../../components/DataTable";
 import AnalyzeModel from "./AnalyzeModel";
 import CompareModels from "./CompareModels";
 

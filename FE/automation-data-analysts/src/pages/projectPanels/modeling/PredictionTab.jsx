@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { FaMagic, FaDownload, FaChartLine } from "react-icons/fa"; 
-import { Button, Card } from "../../components/ui";
-import DataTable from "../../components/DataTable";
-import UploadDropzone from "../../components/UploadDropzone"; 
-import { getListFinalizedModels, predictModel } from "../../components/services/modelingServices";
-import { useAppContext } from "../../contexts/AppContext";
+import { Button, Card } from "../../../components/ui";
+import DataTable from "../../../components/DataTable";
+import UploadDropzone from "../../../components/UploadDropzone"; 
+import { getListFinalizedModels, predictModel } from "../../../components/services/modelingServices";
+import { useAppContext } from "../../../contexts/AppContext";
 
 export default function PredictionTab({ datasetId }) {
   const { state, updateState } = useAppContext();

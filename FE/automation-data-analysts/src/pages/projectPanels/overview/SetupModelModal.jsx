@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { FaBullseye, FaWrench } from "react-icons/fa";
-import { Button, Card } from "../../components/ui";
+import { Button, Card } from "../../../components/ui";
 
 export default function SetupModelModal({
   availableColumns,

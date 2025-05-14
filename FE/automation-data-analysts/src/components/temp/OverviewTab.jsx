@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card } from "../../components/ui";
+import { Card } from "../ui";
 import OverviewContent from "./OverviewContent";
 import AlertsContent from "./AlertsContent";
 import ReproductionContent from "./ReproductionContent";

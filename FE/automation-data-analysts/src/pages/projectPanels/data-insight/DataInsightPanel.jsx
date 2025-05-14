@@ -1,17 +1,17 @@
 import { useEffect, useState } from "react";
-import DataTable from "../../components/DataTable";
-import { Button, Card } from "../../components/ui";
+import DataTable from "../../../components/DataTable";
+import { Button, Card } from "../../../components/ui";
 import { FaChartBar, FaProjectDiagram, FaListAlt, FaEye } from "react-icons/fa";
 import { FiBarChart2, FiFileText, FiDatabase } from "react-icons/fi";
 import { ImDatabase } from "react-icons/im";
 import { FaChartLine } from "react-icons/fa6";
 import { IoIosWarning } from "react-icons/io";
 import ChartGeneration from "./ChartGeneration";
-import { useAppContext } from "../../contexts/AppContext";
-import { getCorrelation, getSummaryStatistics } from "../../components/services/EDAServices";
-import { getAICorrelationMatrix, getAISummaryStatistics } from "../../components/services/aisummaryServices";
-import { parseAISummary } from "../../utils/parseHtml";
-import { getAnalysisReport } from "../../components/services/datasetService";
+import { useAppContext } from "../../../contexts/AppContext";
+import { getCorrelation, getSummaryStatistics } from "../../../components/services/EDAServices";
+import { getAICorrelationMatrix, getAISummaryStatistics } from "../../../components/services/aisummaryServices";
+import { parseAISummary } from "../../../utils/parseHtml";
+import { getAnalysisReport } from "../../../components/services/datasetService";
 
 export default function DataInsightPanel() {
   const { state } = useAppContext(); 

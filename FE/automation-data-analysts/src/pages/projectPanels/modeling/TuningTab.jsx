@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { FaCogs, FaCalculator, FaDownload } from "react-icons/fa";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
-import { Card, Button, Modal } from "../../components/ui";
-import DataTable from "../../components/DataTable";
+import { Card, Button, Modal } from "../../../components/ui";
+import DataTable from "../../../components/DataTable";
 import AnalyzeModel from "./AnalyzeModel";
-import { finalizeModel, tuningSession } from "../../components/services/modelingServices";
-import { useAppContext } from "../../contexts/AppContext";
-import { getTunedModelEvaluation } from "../../components/services/aisummaryServices";
-import { parseAISummary } from "../../utils/parseHtml";
+import { finalizeModel, tuningSession } from "../../../components/services/modelingServices";
+import { useAppContext } from "../../../contexts/AppContext";
+import { getTunedModelEvaluation } from "../../../components/services/aisummaryServices";
+import { parseAISummary } from "../../../utils/parseHtml";
 
 export default function TuningTab({ sessionId, bestModelId, comparisonResults = [], setIsFinalized }) {
   const { state, updateState } = useAppContext();

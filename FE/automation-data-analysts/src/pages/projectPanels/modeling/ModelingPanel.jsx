@@ -2,15 +2,15 @@ import { useEffect, useState } from "react";
 import { FaBullseye, FaWrench } from "react-icons/fa";
 import { Tooltip } from 'react-tooltip';
 import { Loader2 } from "lucide-react";
-import { Card, Modal, Toast } from "../../components/ui";
+import { Card, Modal, Toast } from "../../../components/ui";
 import BaselineTab from "./BaselineTab";
 import TuningTab from "./TuningTab";
 import PredictionTab from "./PredictionTab";
-import { useAppContext } from "../../contexts/AppContext";
-import { getModelPerformanceAnalysis } from "../../components/services/aisummaryServices";
-import { parseAISummary } from "../../utils/parseHtml";
-import SetupModelModal from "./SetupModelModal";
-import { autoMLSession } from "../../components/services/modelingServices";
+import { useAppContext } from "../../../contexts/AppContext";
+import { getModelPerformanceAnalysis } from "../../../components/services/aisummaryServices";
+import { parseAISummary } from "../../../utils/parseHtml";
+import SetupModelModal from "../overview/SetupModelModal";
+import { autoMLSession } from "../../../components/services/modelingServices";
 
 export default function ModelingPanel() {
   const { state, updateState } = useAppContext();

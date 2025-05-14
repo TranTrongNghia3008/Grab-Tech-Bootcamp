@@ -1,7 +1,7 @@
 import { Loader2 } from "lucide-react";
 import { FaMagic } from "react-icons/fa";
-import { Card } from "../../components/ui";
-import DataTable from "../../components/DataTable";
+import { Card } from "../ui";
+import DataTable from "../DataTable";
 
 export default function PredictOnNewData({
   datasetOptions,

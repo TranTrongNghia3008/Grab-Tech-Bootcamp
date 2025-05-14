@@ -3,16 +3,16 @@ import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { FaTableCells } from "react-icons/fa6";
 import { FaSearch, FaRocket, FaSync, FaExclamationTriangle, FaArrowRight } from "react-icons/fa";
 import { Tooltip } from 'react-tooltip';
-import Modal from "../../components/ui/Modal";
-import DataTable from "../../components/DataTable";
-import Button from "../../components/ui/Button";
-import Card from "../../components/ui/Card";
-import Toast from "../../components/ui/Toast";
+import Modal from "../../../components/ui/Modal";
+import DataTable from "../../../components/DataTable";
+import Button from "../../../components/ui/Button";
+import Card from "../../../components/ui/Card";
+import Toast from "../../../components/ui/Toast";
 import SetupModelModal from "./SetupModelModal";
-import { useAppContext } from "../../contexts/AppContext";
-import { getPreviewIssues, cleaningDataset, getCleaningStatus } from "../../components/services/cleaningServices";
-import { autoMLSession, getAutoMLResults } from "../../components/services/modelingServices";
-import { getPreviewDataset } from "../../components/services/datasetService";
+import { useAppContext } from "../../../contexts/AppContext";
+import { getPreviewIssues, cleaningDataset, getCleaningStatus } from "../../../components/services/cleaningServices";
+import { autoMLSession, getAutoMLResults } from "../../../components/services/modelingServices";
+import { getPreviewDataset } from "../../../components/services/datasetService";
 
 export default function OverviewPanel({ setIsTargetFeatureSelected }) {
   const { state, updateState } = useAppContext();

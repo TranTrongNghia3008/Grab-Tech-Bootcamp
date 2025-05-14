@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { FileDown, FileCode, FileArchive, Download } from "lucide-react";
 import { MdOutlineModelTraining } from "react-icons/md";
-import { Button, Card } from "../../components/ui";
-import { downLoadFinalizedModel, getListFinalizedModels } from "../../components/services/modelingServices";
-import { useAppContext } from "../../contexts/AppContext";
-import { getDataProfile } from "../../components/services/EDAServices";
+import { Button, Card } from "../../../components/ui";
+import { downLoadFinalizedModel, getListFinalizedModels } from "../../../components/services/modelingServices";
+import { useAppContext } from "../../../contexts/AppContext";
+import { getDataProfile } from "../../../components/services/EDAServices";
 
 export default function ExportPanel() {
   const { state } = useAppContext();

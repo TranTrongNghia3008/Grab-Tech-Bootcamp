@@ -1,5 +1,5 @@
 import { LineChart, Line, XAxis, YAxis, Tooltip, BarChart, Bar, ResponsiveContainer } from 'recharts';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui';
 
 
 // Mocked Data

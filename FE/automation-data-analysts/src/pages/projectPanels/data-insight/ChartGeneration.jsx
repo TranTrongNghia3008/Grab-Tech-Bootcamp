@@ -4,8 +4,8 @@ import { Loader2 } from "lucide-react";
 import { Line, Bar, Scatter } from "react-chartjs-2";
 import { Chart, registerables } from "chart.js";
 import zoomPlugin from "chartjs-plugin-zoom";
-import { Button, Card } from "../../components/ui";
-import { getChartColumns, getChartSummary } from "../../components/services/chartServices";
+import { Button, Card } from "../../../components/ui";
+import { getChartColumns, getChartSummary } from "../../../components/services/chartServices";
 
 Chart.register(...registerables, zoomPlugin);
 

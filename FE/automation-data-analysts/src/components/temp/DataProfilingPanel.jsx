@@ -1,6 +1,6 @@
 import { useState } from "react";
 import OverviewTab from "./OverviewTab";
-import VariablesTab from "./VariablesTab";
+import VariablesTab from "../../pages/projectPanels/VariablesTab";
 
 const tabs = ["Overview", "Variables"];
 

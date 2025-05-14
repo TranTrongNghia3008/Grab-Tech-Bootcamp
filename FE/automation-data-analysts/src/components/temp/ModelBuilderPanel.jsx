@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { FaCogs , FaCalculator, FaDownload } from "react-icons/fa";
-import { Card, Button } from "../../components/ui";
-import DataTable from "../../components/DataTable";
+import { Card, Button } from "../ui";
+import DataTable from "../DataTable";
 import SelectTargetFeaturesModel from "./SelectTargetFeatures";
 import AnalyzeModel from "./AnalyzeModel";
 import PredictOnNewData from "./PredictOnNewData";

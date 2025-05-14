@@ -1,4 +1,4 @@
-import { Card } from "../../components/ui";
+import { Card } from "../ui";
 
 export default function AlertsContent() {
   const alerts = [
