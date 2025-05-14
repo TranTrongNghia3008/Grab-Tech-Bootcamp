@@ -101,11 +101,11 @@ export default function PredictionTab({ datasetId }) {
     URL.revokeObjectURL(url);
   };
   
-  const handleViewDriftReport = () => {
-    // Giả lập mở file drift_report.html, bạn chỉnh path thật đúng sau này
-    const reportUrl = "/drift_reports/prediction_drift_report.html"; 
-    window.open(reportUrl, "_blank");
-  };
+  // const handleViewDriftReport = () => {
+  //   // Giả lập mở file drift_report.html, bạn chỉnh path thật đúng sau này
+  //   const reportUrl = "/drift_reports/prediction_drift_report.html"; 
+  //   window.open(reportUrl, "_blank");
+  // };
 
   return (
     <div className="space-y-8">
@@ -186,9 +186,9 @@ export default function PredictionTab({ datasetId }) {
               <FaDownload className="mr-2" /> Download Predicted Data
             </Button>
 
-            <Button variant="outline" onClick={handleViewDriftReport}>
+            {/* <Button variant="outline" onClick={handleViewDriftReport}>
               <FaChartLine className="mr-2" /> View Prediction Drift Report
-            </Button>
+            </Button> */}
           </div>
         </Card>
       )}

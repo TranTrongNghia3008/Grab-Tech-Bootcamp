@@ -179,13 +179,13 @@ export default function DataInsightPanel() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold">Exploratory Data Analysis</h2>
+      <h2 className="text-xl font-bold">Data Insight</h2>
 
       {overview && (
         <Card>
           <h3 className="text-gray-800 text-xl flex items-center gap-2">
             <FiDatabase />
-            Dataset Overview
+            Exploratory Data
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Total Records */}

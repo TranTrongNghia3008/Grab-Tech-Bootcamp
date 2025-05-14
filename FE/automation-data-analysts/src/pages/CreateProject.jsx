@@ -54,9 +54,15 @@ export default function CreateProject() {
     setLoading(true);
 
     try {
-      const result = await upLoadDataset(projectName, file); // Gọi API tải lên dataset
-      console.log("Dataset ID:", result.id); // Log kết quả tải lên cho việc gỡ lỗi
-      updateState({ datasetId: result.id, projectName: projectName, isClean: false, isModel: false }); // Cập nhật datasetId vào context nếu cần
+      const result = await upLoadDataset(projectName, file); 
+      console.log("Dataset ID:", result.id); 
+      updateState({ datasetId: result.id, projectName: projectName, isClean: false, isModel: false }); 
+      localStorage.setItem("currentProject", JSON.stringify({
+        datasetId: result.id,
+        projectName: projectName || "Untitled Project",
+        isClean: false,
+        isModel: false
+      }));
       const newProject = {
         id: result.projectId || Date.now(),
         name: projectName.trim(),

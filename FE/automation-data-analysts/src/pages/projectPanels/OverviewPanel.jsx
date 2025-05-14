@@ -49,6 +49,21 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
   const [note, setNote] = useState(<>Confirm that this is your dataset. Click <strong>Next</strong> to review and prepare it for training.</>)
 
   useEffect(() => {
+    if (!datasetId) {
+      const currentProjectStr = localStorage.getItem("currentProject");
+      if (currentProjectStr) {
+        const currentProject = JSON.parse(currentProjectStr);
+        updateState({
+          datasetId: currentProject.datasetId,
+          projectName: currentProject.projectName,
+          isClean: currentProject.isClean, // đảm bảo key giống với key lưu trong localStorage
+          isModel: currentProject.isModel, // hoặc currentProject.is_model nếu bạn lưu theo cách đó
+        });
+      }
+    }
+  }, [datasetId, updateState]);
+
+  useEffect(() => {
     const fetchAutoMLResults = async () => {
       try {
         const results = await getAutoMLResults(datasetId)
@@ -222,7 +237,10 @@ export default function OverviewPanel({ setIsTargetFeatureSelected }) {
                 <FaTableCells className="text-green-600 text-3xl" />
                 <div className="text-sm">
                   <div className="font-bold text-gray-800">{csvFileName}</div>
-                  <div className="text-gray-600">{numRows} rows, {numColumns} columns</div>
+                  <div className="text-gray-600">
+                    {Intl.NumberFormat("en", { notation: "compact" }).format(numRows)} rows,&nbsp;
+                    {Intl.NumberFormat("en", { notation: "compact" }).format(numColumns)} columns
+                  </div>
                 </div>
               </div>
             </div>

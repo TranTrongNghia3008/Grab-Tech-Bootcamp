@@ -1,3 +1,5 @@
+import { parseAISummary } from "./parseHtml";
+
 export function formatHistoryFromLogs(logs) {
   console.log("logs: ", logs)
   const history = [];
@@ -16,14 +18,14 @@ export function formatHistoryFromLogs(logs) {
         if (next.event_type === "USER_QUERY") break;
 
         if (next.event_type === "TEXT_RESPONSE") {
-          const text = next.payload?.content;
+          const text = parseAISummary(next.payload?.content || "");
           if (text) {
             answerParts.push(`<p class="text-gray-800">${text}</p>`);
           }
         }
 
         if (next.event_type === "CALCULATION_RESULT") {
-          const output = next.payload?.output || next.payload?.message;
+          const output = parseAISummary(next.payload?.output || next.payload?.message)
           if (output) {
             answerParts.push(`
               <div class="bg-yellow-50 border border-yellow-200 rounded-md p-2 text-sm text-yellow-800 whitespace-pre-wrap">
@@ -62,7 +64,7 @@ export function formatHistoryFromLogs(logs) {
 
 
         if (next.event_type === "PLOT_ANALYSIS_RESULT") {
-          const insights = next.payload?.insights;
+          const insights = parseAISummary(next.payload?.insights);
           if (insights) {
             answerParts.push(`
               <div class="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm text-blue-800 whitespace-pre-wrap">

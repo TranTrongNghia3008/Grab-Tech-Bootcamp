@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { Send, Plus, Menu } from "lucide-react";
 import { BsLightbulb } from "react-icons/bs";
 import { useAppContext } from "../../contexts/AppContext";
-import { clearHistory, getAllSessions, getKStateLatest, getSessionState, getStarterQuestions, interactChatbot, startConversation } from "../../components/services/chatbotServices";
+import { deleteSession, getAllSessions, getKStateLatest, getSessionState, getStarterQuestions, interactChatbot, startConversation, updateSessionName } from "../../components/services/chatbotServices";
 import { formatHistoryFromLogs } from "../../utils/formatHistoryFromLogs";
-import { Button, Modal } from "../../components/ui";
+import { Button, Modal, Toast } from "../../components/ui";
 
 export default function ChatbotPanel() {
     const { state } = useAppContext(); 
@@ -21,6 +21,8 @@ export default function ChatbotPanel() {
     const [convToDelete, setConvToDelete] = useState(null);
     const [starterQuestions, setStarterQuestions] = useState([]);
     const [loadingStarter, setLoadingStarter] = useState(false);
+    const [nameError, setNameError] = useState("");
+    const [toast, setToast] = useState({ show: false, type: "", message: "" });
 
     const chatEndRef = useRef();
 
@@ -79,6 +81,13 @@ export default function ChatbotPanel() {
         document.addEventListener("click", handler);
         return () => document.removeEventListener("click", handler);
     }, []);
+
+    useEffect(() => {
+        if (toast.show) {
+            const timer = setTimeout(() => setToast({ show: false, type: "", message: "" }), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [toast]);
 
 
     const handleSend = async () => {
@@ -144,11 +153,67 @@ export default function ChatbotPanel() {
         
     };
 
+    const handleSaveConversationName = async (convId) => {
+        if (!editedName.trim()) {
+            setNameError("Conversation name cannot be empty.");
+            return;
+        }
+
+        setNameError(""); // Xoá lỗi nếu hợp lệ
+
+        try {
+            await updateSessionName(datasetId, convId, editedName);
+
+            setConversations((prev) =>
+            prev.map((c) =>
+                c.id === convId ? { ...c, name: editedName } : c
+            )
+            );
+            setEditingConvId(null);
+            setToast({ show: true, type: "success", message: "Conversation renamed successfully!" });
+        } catch (error) {
+            console.error("Rename failed:", error);
+            setToast({ show: true, type: "error", message: "Failed to rename conversation." });
+        }
+    };
+
+    const handleDeleteConversationConfirm = async () => {
+        if (!convToDelete) return;
+
+        try {
+            await deleteSession(datasetId, convToDelete); // Gọi API xóa
+
+            setConversations((prev) =>
+            prev.filter((c) => c.id !== convToDelete)
+            );
+
+            if (currentConv?.id === convToDelete) {
+            setCurrentConv(null);
+            setHistory([]);
+            }
+
+            setToast({
+            show: true,
+            type: "success",
+            message: "Conversation deleted successfully!",
+            });
+        } catch (err) {
+            console.error("Failed to delete conversation", err);
+            setToast({
+            show: true,
+            type: "error",
+            message: "Failed to delete conversation. Please try again.",
+            });
+        } finally {
+            setShowDeleteModal(false);
+        }
+    };
+
 
     const handleDeleteConversation = (id) => {
         setConvToDelete(id);
         setShowDeleteModal(true);
-        fetchConversations();
+        // fetchConversations();
         // setConversations((prev) => prev.filter((c) => c.id !== id));
         // if (currentConv?.id === id) {
         // setCurrentConv(null);
@@ -175,7 +240,13 @@ export default function ChatbotPanel() {
                     <Plus size={18} />
                     </button>
                 </div>
-                <ul className="space-y-1 text-sm">
+                {!conversations.length ? (
+                    <p className="text-sm text-gray-500 p-4">
+                    No conversations yet. <br />
+                    Click the "+" button to start a new one.
+                    </p>
+                    ) : (
+                    <ul className="space-y-1 text-sm">
                     {conversations.map((conv) => (
                         <li
                         key={conv.id}
@@ -186,33 +257,34 @@ export default function ChatbotPanel() {
                         }`}
                         >
                         {editingConvId === conv.id ? (
-                            <div className="flex items-center w-full gap-1">
-                            <input
-                                value={editedName}
-                                onChange={(e) => setEditedName(e.target.value)}
-                                className="text-sm flex-1 px-2 py-1 rounded border border-gray-300"
-                            />
-                            <button
-                                onClick={() => {
-                                setConversations((prev) =>
-                                    prev.map((c) =>
-                                    c.id === conv.id ? { ...c, name: editedName } : c
-                                    )
-                                );
-                                setEditingConvId(null);
-                                }}
-                                className="text-green-600 hover:text-green-800 text-xs"
-                                title="Save"
-                            >
-                                ✅
-                            </button>
-                            <button
-                                onClick={() => setEditingConvId(null)}
-                                className="text-gray-400 hover:text-gray-600 text-xs"
-                                title="Cancel"
-                            >
-                                ❌
-                            </button>
+                            <div className="flex flex-col w-full gap-1">
+                                <div className="flex items-center gap-1">
+                                <input
+                                    value={editedName}
+                                    onChange={(e) => setEditedName(e.target.value)}
+                                    className="text-sm flex-1 px-2 py-1 rounded border border-gray-300"
+                                />
+                                <button
+                                    onClick={() => handleSaveConversationName(conv.id)}
+                                    className="text-green-600 hover:text-green-800 text-xs"
+                                    title="Save"
+                                >
+                                    ✅
+                                </button>
+                                <button
+                                    onClick={() => {
+                                    setEditingConvId(null);
+                                    setNameError("");
+                                    }}
+                                    className="text-gray-400 hover:text-gray-600 text-xs"
+                                    title="Cancel"
+                                >
+                                    ❌
+                                </button>
+                                </div>
+                                {nameError && (
+                                <p className="text-red-500 text-xs">{nameError}</p>
+                                )}
                             </div>
                         ) : (
                             <>
@@ -246,7 +318,8 @@ export default function ChatbotPanel() {
                         )}
                         </li>
                     ))}
-                </ul>
+                    </ul>
+                    )}
 
                 </div>
             )}
@@ -264,7 +337,7 @@ export default function ChatbotPanel() {
                     <Menu size={20} />
                     </button>
                     <h2 className="font-semibold text-gray-700 text-sm">
-                    {currentConv?.name || "No conversation selected"}
+                    {currentConv?.name || "No conversation"}
                     </h2>
                 </div>
                 </div>
@@ -365,40 +438,28 @@ export default function ChatbotPanel() {
             </div>
 
             {showDeleteModal && convToDelete && (
-                <Modal title="Delete Conversation" onClose={() => setShowDeleteModal(false)}>
-                    <div className="space-y-4 text-sm">
-                    <p>
-                        Are you sure you want to delete <strong>{convToDelete.name}</strong>?
-                    </p>
-                    <div className="text-right space-x-2">
-                        <Button variant="muted" onClick={() => setShowDeleteModal(false)}>Cancel</Button>
-                        <Button
-                        variant="danger"
-                        className="bg-red-600 hover:bg-red-700 text-white"
-                        onClick={async () => {
-                            try {
-                                await clearHistory(datasetId, convToDelete.id);
-                                setConversations((prev) => prev.filter((c) => c.id !== convToDelete.id));
-                                if (currentConv?.id === convToDelete.id) {
-                                    setCurrentConv(null);
-                                    setHistory([]);
-                                }
+            <Modal title="Delete Conversation" onClose={() => setShowDeleteModal(false)}>
+                <div className="space-y-4 text-sm">
+                <p>
+                    Are you sure you want to delete <strong>{convToDelete.name}</strong>?
+                </p>
+                <div className="text-right space-x-2">
+                    <Button variant="muted" onClick={() => setShowDeleteModal(false)}>
+                    Cancel
+                    </Button>
+                    <Button
+                    variant="danger"
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                    onClick={handleDeleteConversationConfirm}
+                    >
+                    Delete
+                    </Button>
+                </div>
+                </div>
+            </Modal>
+)}
 
-                            } catch (err) {
-                                console.error("Failed to delete conversation", err);
-
-                            } finally {
-                                setShowDeleteModal(false);
-                            }
-                        }}
-                        >
-                            Delete
-                        </Button>
-                    </div>
-                    </div>
-                </Modal>
-                )}
-
+            {toast.show && <Toast type={toast.type} message={toast.message} />}
         </div>
     );
 }

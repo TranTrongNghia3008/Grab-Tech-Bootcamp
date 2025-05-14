@@ -18,7 +18,7 @@ export function getPreviewDataset(datasetId) {
 }
 
 export function getAllByCreation() {
-  return apiClient("/v1/datasets/all-by-creation", {
+  return apiClient("/v1/datasets/all-by-creation/", {
     method: "GET"
   })
 }
@@ -26,5 +26,21 @@ export function getAllByCreation() {
 export function getAnalysisReport(datasetId) {
   return apiClient(`/v1/datasets/${datasetId}/analysis-report`, {
     method: "GET"
+  })
+}
+
+export function updateProjectName(datasetId, projectName) {
+  const payload = {
+    project_name: projectName
+  }
+  return apiClient(`/v1/datasets/${datasetId}/project_name/`, {
+    method: "PATCH",
+    body: payload
+  })
+}
+
+export function deleteDataset(datasetId) {
+  return apiClient(`/v1/datasets/${datasetId}`, {
+    method: "DELETE"
   })
 }
